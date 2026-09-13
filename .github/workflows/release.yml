@@ -50,6 +50,11 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Validate Kotlin Imports & Static Syntax
+        run: |
+          echo "=== Running Kotlin static analysis & import verification ==="
+          python3 scripts/validate_kotlin.py
+
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
@@ -154,6 +159,11 @@ jobs:
 
       - name: Make Gradle Wrapper Executable
         run: chmod +x ./gradlew
+
+      - name: Run Unit Tests
+        run: |
+          echo "=== Running Unit Tests ==="
+          ./gradlew :app:testDebugUnitTest --no-daemon
 
       - name: Build Android APK
         env:
