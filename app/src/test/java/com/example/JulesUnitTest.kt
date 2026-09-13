@@ -142,5 +142,27 @@ class JulesUnitTest {
         assertEquals("Elon Uziel", settings.gitHubUserName)
         assertEquals("elonuziel", settings.gitHubUserLogin)
         assertEquals("ghp_••••cdef", settings.maskedGitHubToken)
+        assertTrue(settings.autoCreatePr)
+        assertTrue(settings.isAutonomous)
+    }
+
+    @Test
+    fun testJulesSessionRequestDto() {
+        val req = com.example.data.remote.dto.JulesCreateSessionRequestDto(
+            prompt = "Fix memory leak in network sync worker",
+            title = "Fix memory leak",
+            sourceContext = com.example.data.remote.dto.JulesSourceContextDto(
+                source = "sources/github/google/cloud-android-sdk",
+                githubRepoContext = com.example.data.remote.dto.JulesRepoContextDto(startingBranch = "main")
+            ),
+            requirePlanApproval = true,
+            automationMode = "AUTO_CREATE_PR"
+        )
+        assertEquals("Fix memory leak in network sync worker", req.prompt)
+        assertEquals("Fix memory leak", req.title)
+        assertTrue(req.requirePlanApproval)
+        assertEquals("AUTO_CREATE_PR", req.automationMode)
+        assertEquals("sources/github/google/cloud-android-sdk", req.sourceContext.source)
+        assertEquals("main", req.sourceContext.githubRepoContext?.startingBranch)
     }
 }

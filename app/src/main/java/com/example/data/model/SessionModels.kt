@@ -104,8 +104,8 @@ data class RepoSourceItem(
 
 data class AgentSettingsState(
     val isAutonomous: Boolean = true,
+    val autoCreatePr: Boolean = true,
     val autoTestSuite: Boolean = true,
-    val reasoningBudgetK: Int = 64,
     val pushNotificationOnPr: Boolean = true,
     val notifyOnFailedTests: Boolean = true,
     val requireManualApproval: Boolean = false,

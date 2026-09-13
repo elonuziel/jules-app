@@ -71,6 +71,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.border
 import com.example.data.model.TaskCategory
 import com.example.ui.theme.JulesOutline
 import com.example.ui.theme.JulesOutlineVariant
@@ -95,8 +96,8 @@ fun NewTaskScreen(
     val selectedCategory by viewModel.selectedCategory.collectAsState()
     val promptText by viewModel.promptText.collectAsState()
     val isAutonomous by viewModel.isAutonomous.collectAsState()
+    val autoCreatePr by viewModel.autoCreatePr.collectAsState()
     val autoTestSuite by viewModel.autoTestSuite.collectAsState()
-    val reasoningBudgetK by viewModel.reasoningBudgetK.collectAsState()
     val isExecutionSettingsExpanded by viewModel.isExecutionSettingsExpanded.collectAsState()
     val isDispatching by viewModel.isDispatching.collectAsState()
     val dispatchSuccessMessage by viewModel.dispatchSuccessMessage.collectAsState()
@@ -595,7 +596,7 @@ fun NewTaskScreen(
                                     color = MaterialTheme.colorScheme.onSurface
                                 )
                                 Text(
-                                    text = "Gemini 1.5 Pro • ${reasoningBudgetK}k Reasoning Budget",
+                                    text = "${if (isAutonomous) "Autonomous" else "Interactive Plan"} • ${if (autoCreatePr) "Auto PR" else "Diff Only"}",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -616,10 +617,10 @@ fun NewTaskScreen(
                                 .padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
                             verticalArrangement = Arrangement.spacedBy(14.dp)
                         ) {
-                            // Autonomy Level
+                            // 1. Plan Approval / Autonomy (requirePlanApproval)
                             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                                 Text(
-                                    text = "AUTONOMY LEVEL",
+                                    text = "PLAN APPROVAL & AUTONOMY",
                                     style = MaterialTheme.typography.labelSmall.copy(
                                         fontWeight = FontWeight.Medium,
                                         letterSpacing = 0.8.sp
@@ -633,19 +634,72 @@ fun NewTaskScreen(
                                 ) {
                                     AutonomyCard(
                                         title = "Autonomous",
-                                        subtitle = "Self-executes unit tests and drafts complete PR.",
+                                        subtitle = "Auto-approves plans and generates patch diff directly.",
                                         isSelected = isAutonomous,
                                         onClick = { viewModel.isAutonomous.value = true },
                                         modifier = Modifier.weight(1f)
                                     )
                                     AutonomyCard(
                                         title = "Interactive",
-                                        subtitle = "Pauses for engineer signoff at every patch diff.",
+                                        subtitle = "Pauses for explicit plan approval before code synthesis.",
                                         isSelected = !isAutonomous,
                                         onClick = { viewModel.isAutonomous.value = false },
                                         modifier = Modifier.weight(1f)
                                     )
                                 }
+                            }
+
+                            // 2. PR Automation Mode (automationMode: AUTO_CREATE_PR)
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(JulesSurfaceContainerHigh, RoundedCornerShape(10.dp))
+                                    .padding(12.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(32.dp)
+                                            .background(JulesPrimary.copy(alpha = 0.15f), RoundedCornerShape(8.dp)),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.ForkRight,
+                                            contentDescription = null,
+                                            tint = JulesPrimary,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+                                    Column {
+                                        Text(
+                                            text = "Auto-Create Pull Request",
+                                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                        Text(
+                                            text = "AUTO_CREATE_PR on GitHub upon patch completion",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = JulesOutline
+                                        )
+                                    }
+                                }
+
+                                Switch(
+                                    checked = autoCreatePr,
+                                    onCheckedChange = { viewModel.autoCreatePr.value = it },
+                                    colors = SwitchDefaults.colors(
+                                        checkedThumbColor = Color.White,
+                                        checkedTrackColor = JulesPrimaryContainer,
+                                        uncheckedThumbColor = JulesOutline,
+                                        uncheckedTrackColor = JulesSurfaceLowest
+                                    )
+                                )
                             }
 
                             // Auto Test Suite Toggle
@@ -698,63 +752,6 @@ fun NewTaskScreen(
                                         uncheckedTrackColor = JulesSurfaceLowest
                                     )
                                 )
-                            }
-
-                            // Reasoning Token Budget
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .background(JulesSurfaceContainerHigh, RoundedCornerShape(10.dp))
-                                    .padding(12.dp)
-                            ) {
-                                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Text(
-                                            text = "REASONING TOKEN BUDGET",
-                                            style = MaterialTheme.typography.labelSmall.copy(
-                                                fontWeight = FontWeight.Medium,
-                                                letterSpacing = 0.8.sp
-                                            ),
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                        Box(
-                                            modifier = Modifier
-                                                .background(JulesTertiary.copy(alpha = 0.15f), RoundedCornerShape(4.dp))
-                                                .padding(horizontal = 8.dp, vertical = 2.dp)
-                                        ) {
-                                            Text(
-                                                text = "${reasoningBudgetK}k tokens",
-                                                style = MaterialTheme.typography.labelSmall,
-                                                color = JulesTertiary
-                                            )
-                                        }
-                                    }
-
-                                    Slider(
-                                        value = reasoningBudgetK.toFloat(),
-                                        onValueChange = { viewModel.reasoningBudgetK.value = it.toInt() },
-                                        valueRange = 16f..128f,
-                                        steps = 6,
-                                        colors = SliderDefaults.colors(
-                                            thumbColor = JulesTertiary,
-                                            activeTrackColor = JulesTertiary,
-                                            inactiveTrackColor = JulesSurfaceLowest
-                                        )
-                                    )
-
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween
-                                    ) {
-                                        Text("16k (Fast)", style = MaterialTheme.typography.labelSmall, color = JulesOutline)
-                                        Text("64k (Deep)", style = MaterialTheme.typography.labelSmall, color = JulesOutline)
-                                        Text("128k (Full Audit)", style = MaterialTheme.typography.labelSmall, color = JulesOutline)
-                                    }
-                                }
                             }
 
                             // Base RPC Gateway

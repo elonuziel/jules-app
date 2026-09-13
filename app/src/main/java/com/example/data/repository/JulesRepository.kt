@@ -179,7 +179,8 @@ class JulesRepository(
         title: String,
         source: String,
         startingBranch: String,
-        requirePlanApproval: Boolean = false
+        requirePlanApproval: Boolean = false,
+        automationMode: String = "AUTO_CREATE_PR"
     ): Result<SessionItem> = withContext(Dispatchers.IO) {
         try {
             if (apiKey.isBlank()) {
@@ -193,7 +194,8 @@ class JulesRepository(
                     source = cleanSource,
                     githubRepoContext = JulesRepoContextDto(startingBranch = startingBranch.ifBlank { "main" })
                 ),
-                requirePlanApproval = requirePlanApproval
+                requirePlanApproval = requirePlanApproval,
+                automationMode = automationMode
             )
 
             val createdDto = julesApi.createSession(apiKey.trim(), requestBody)

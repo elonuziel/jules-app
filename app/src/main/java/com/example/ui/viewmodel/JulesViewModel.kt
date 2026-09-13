@@ -523,8 +523,8 @@ class JulesViewModel(application: Application) : AndroidViewModel(application) {
     val selectedCategory = MutableStateFlow(TaskCategory.BUG_FIX)
     val promptText = MutableStateFlow("")
     val isAutonomous = MutableStateFlow(true)
+    val autoCreatePr = MutableStateFlow(true)
     val autoTestSuite = MutableStateFlow(true)
-    val reasoningBudgetK = MutableStateFlow(64)
     val isExecutionSettingsExpanded = MutableStateFlow(false)
     val isDispatching = MutableStateFlow(false)
     val dispatchSuccessMessage = MutableStateFlow<String?>(null)
@@ -554,13 +554,15 @@ class JulesViewModel(application: Application) : AndroidViewModel(application) {
                     isDispatching.value = false
                     return@launch
                 }
+                val rawPrompt = promptText.value.trim()
                 val result = repository.createRemoteSession(
                     apiKey = key,
-                    prompt = promptText.value,
-                    title = promptText.value.take(60),
+                    prompt = rawPrompt,
+                    title = rawPrompt.take(60),
                     source = selectedRepo.value,
                     startingBranch = targetBranch.value,
-                    requirePlanApproval = settingsState.value.requireManualApproval
+                    requirePlanApproval = !isAutonomous.value || settingsState.value.requireManualApproval,
+                    automationMode = if (autoCreatePr.value) "AUTO_CREATE_PR" else "AUTOMATION_MODE_UNSPECIFIED"
                 )
 
                 if (result.isSuccess) {
