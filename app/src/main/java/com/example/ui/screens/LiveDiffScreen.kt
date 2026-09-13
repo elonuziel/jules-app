@@ -173,6 +173,30 @@ fun LiveDiffScreen(
         label = "spin_angle"
     )
 
+    val consoleLogs = remember(activeSession, sessionActivities, diffFiles) {
+        buildString {
+            appendLine("$ git fetch origin && git checkout ${activeSession?.branch ?: "main"}")
+            appendLine("Switched to branch '${activeSession?.branch ?: "main"}' on repository '${activeSession?.repo ?: "workspace"}'")
+            appendLine("$ jules agent --session ${activeSession?.id ?: "current"}")
+            appendLine("[jules] Status: ${activeSession?.status?.label ?: "IDLE"}")
+            appendLine("[jules] Current step: ${activeSession?.currentStep ?: "Standby"}")
+            if (sessionActivities.isNotEmpty()) {
+                appendLine("\n--- SESSION ACTIVITY STREAM ---")
+                sessionActivities.forEach { act ->
+                    val time = act.createTime?.substringAfter("T")?.take(8) ?: "00:00:00"
+                    val msg = act.agentMessaged?.message ?: act.userMessaged?.message ?: act.progressUpdated?.message ?: act.description ?: "Event"
+                    appendLine("[$time] [${act.originator ?: "AGENT"}] $msg")
+                }
+            }
+            if (diffFiles.isNotEmpty()) {
+                appendLine("\n$ git status --short")
+                diffFiles.forEach { file ->
+                    appendLine("M  ${file.fileName} (+${file.addedCount} / -${file.deletedCount})")
+                }
+            }
+        }
+    }
+
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 100.dp),
@@ -1117,29 +1141,6 @@ fun LiveDiffScreen(
 
         // VIEW MODE 2: Console
         if (selectedViewMode == 2) {
-            val consoleLogs = remember(activeSession, sessionActivities, diffFiles) {
-                buildString {
-                    appendLine("$ git fetch origin && git checkout ${activeSession?.branch ?: "main"}")
-                    appendLine("Switched to branch '${activeSession?.branch ?: "main"}' on repository '${activeSession?.repo ?: "workspace"}'")
-                    appendLine("$ jules agent --session ${activeSession?.id ?: "current"}")
-                    appendLine("[jules] Status: ${activeSession?.status?.label ?: "IDLE"}")
-                    appendLine("[jules] Current step: ${activeSession?.currentStep ?: "Standby"}")
-                    if (sessionActivities.isNotEmpty()) {
-                        appendLine("\n--- SESSION ACTIVITY STREAM ---")
-                        sessionActivities.forEach { act ->
-                            val time = act.createTime?.substringAfter("T")?.take(8) ?: "00:00:00"
-                            val msg = act.agentMessaged?.message ?: act.userMessaged?.message ?: act.progressUpdated?.message ?: act.description ?: "Event"
-                            appendLine("[$time] [${act.originator ?: "AGENT"}] $msg")
-                        }
-                    }
-                    if (diffFiles.isNotEmpty()) {
-                        appendLine("\n$ git status --short")
-                        diffFiles.forEach { file ->
-                            appendLine("M  ${file.fileName} (+${file.addedCount} / -${file.deletedCount})")
-                        }
-                    }
-                }
-            }
             item {
                 Box(
                     modifier = Modifier

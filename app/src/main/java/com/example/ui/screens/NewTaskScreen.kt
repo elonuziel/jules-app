@@ -835,7 +835,7 @@ fun NewTaskScreen(
                         )
                     } else {
                         Icon(
-                            imageVector = Icons.Default.RocketLaunch,
+                            imageVector = Icons.Default.AutoAwesome,
                             contentDescription = null,
                             modifier = Modifier.size(20.dp)
                         )
