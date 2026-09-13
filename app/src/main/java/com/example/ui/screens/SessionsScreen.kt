@@ -35,6 +35,8 @@ import androidx.compose.material.icons.filled.CallMerge
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DataObject
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.MergeType
 import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.Psychology
@@ -58,6 +60,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
@@ -115,13 +118,22 @@ fun SessionsScreen(
     val currentFilter by viewModel.selectedFilter.collectAsState()
     val activeDrawerSession by viewModel.activeDrawerSession.collectAsState()
 
+    var focusedSessionId by remember { mutableStateOf<String?>(null) }
+    var isQueueExpanded by remember { mutableStateOf(false) }
+
+    // Identify the current session's active task to highlight
+    val activeSession = (focusedSessionId?.let { id -> allList.firstOrNull { it.id == id } })
+        ?: allList.firstOrNull { it.status == SessionStatus.RUNNING || it.status == SessionStatus.PATCHING }
+        ?: allList.firstOrNull { it.status == SessionStatus.NEEDS_REVIEW }
+        ?: allList.firstOrNull()
+
     Box(modifier = Modifier.fillMaxSize()) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 100.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            // 1. Clean Title Header
+            // 1. Clean Focus Workspace Header
             item {
                 Row(
                     modifier = Modifier
@@ -132,156 +144,575 @@ fun SessionsScreen(
                 ) {
                     Column {
                         Text(
-                            text = "Tasks & Sessions",
+                            text = "Focus Workspace",
                             style = MaterialTheme.typography.titleLarge.copy(
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 22.sp
                             ),
                             color = MaterialTheme.colorScheme.onSurface
                         )
-                        val runningCount = allList.count { it.status == SessionStatus.RUNNING || it.status == SessionStatus.PATCHING }
                         Text(
-                            text = if (runningCount > 0) "$runningCount active tasks running" else "All tasks up to date",
+                            text = if (activeSession != null) "Current Active Task: #${activeSession.id}" else "Ready for new tasks",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
+
+                    // Live pulse indicator
+                    val runningCount = allList.count { it.status == SessionStatus.RUNNING || it.status == SessionStatus.PATCHING }
+                    Box(
+                        modifier = Modifier
+                            .background(
+                                if (runningCount > 0) JulesSecondary.copy(alpha = 0.12f) else JulesSurfaceContainerHigh,
+                                RoundedCornerShape(20.dp)
+                            )
+                            .padding(horizontal = 10.dp, vertical = 5.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(8.dp)
+                                    .background(if (runningCount > 0) JulesSecondary else JulesOutline, CircleShape)
+                            )
+                            Text(
+                                text = if (runningCount > 0) "$runningCount Active" else "Standing By",
+                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
+                                color = if (runningCount > 0) JulesSecondary else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
                 }
             }
 
-            // 2. Search Box and Filter Chips
-            item {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    OutlinedTextField(
-                        value = query,
-                        onValueChange = { viewModel.searchQuery.value = it },
+            // 2. Current Session's Active Task Highlight Card
+            if (activeSession != null) {
+                item {
+                    Card(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .testTag("session_search_input"),
-                        placeholder = {
+                            .testTag("active_task_focus_card"),
+                        shape = RoundedCornerShape(18.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = JulesSurfaceContainer
+                        ),
+                        border = BorderStroke(1.5.dp, JulesPrimary.copy(alpha = 0.35f))
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(18.dp),
+                            verticalArrangement = Arrangement.spacedBy(14.dp)
+                        ) {
+                            // Header badge row
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .background(JulesPrimaryContainer, RoundedCornerShape(6.dp))
+                                            .padding(horizontal = 8.dp, vertical = 3.dp)
+                                    ) {
+                                        Text(
+                                            text = "IN FOCUS",
+                                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                            color = Color.White
+                                        )
+                                    }
+
+                                    Box(
+                                        modifier = Modifier
+                                            .background(JulesSurfaceLowest, RoundedCornerShape(6.dp))
+                                            .padding(horizontal = 8.dp, vertical = 3.dp)
+                                    ) {
+                                        Text(
+                                            text = activeSession.category.label,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = JulesPrimary
+                                        )
+                                    }
+                                }
+
+                                Text(
+                                    text = "#${activeSession.id}",
+                                    style = MaterialTheme.typography.labelMedium.copy(
+                                        fontFamily = FontFamily.Monospace,
+                                        fontWeight = FontWeight.Bold
+                                    ),
+                                    color = JulesOutline
+                                )
+                            }
+
+                            // Active Task Title
                             Text(
-                                "Filter repositories, branches, or tasks...",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = JulesOutline
+                                text = activeSession.title,
+                                style = MaterialTheme.typography.titleMedium.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 18.sp,
+                                    lineHeight = 24.sp
+                                ),
+                                color = MaterialTheme.colorScheme.onSurface
                             )
-                        },
-                        leadingIcon = {
-                            Icon(
-                                imageVector = Icons.Default.Search,
-                                contentDescription = "Search",
-                                tint = JulesPrimary,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        },
-                        trailingIcon = {
-                            if (query.isNotEmpty()) {
-                                IconButton(onClick = { viewModel.searchQuery.value = "" }) {
+
+                            // Target Repo & Branch
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(JulesSurfaceLowest, RoundedCornerShape(8.dp))
+                                    .padding(horizontal = 10.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Source,
+                                    contentDescription = null,
+                                    tint = JulesPrimary,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Text(
+                                    text = activeSession.repo,
+                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = "•",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = JulesOutlineVariant
+                                )
+                                Text(
+                                    text = activeSession.branch,
+                                    style = MaterialTheme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace),
+                                    color = JulesPrimary
+                                )
+                            }
+
+                            // Prompt / Objective
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(JulesSurfaceLowest)
+                                    .padding(10.dp)
+                            ) {
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalAlignment = Alignment.Top
+                                ) {
                                     Icon(
-                                        imageVector = Icons.Default.Close,
-                                        contentDescription = "Clear",
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.size(18.dp)
+                                        imageVector = Icons.Default.Psychology,
+                                        contentDescription = null,
+                                        tint = JulesTertiary,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Text(
+                                        text = activeSession.prompt,
+                                        style = MaterialTheme.typography.bodySmall.copy(lineHeight = 18.sp),
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
                             }
-                        },
-                        shape = RoundedCornerShape(12.dp),
-                        singleLine = true,
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = JulesSurfaceContainer,
-                            unfocusedContainerColor = JulesSurfaceContainer,
-                            focusedBorderColor = JulesPrimary,
-                            unfocusedBorderColor = JulesOutlineVariant.copy(alpha = 0.5f),
-                            focusedTextColor = MaterialTheme.colorScheme.onSurface,
-                            unfocusedTextColor = MaterialTheme.colorScheme.onSurface
-                        )
-                    )
 
-                    // Filter Chips Row
-                    val runningCount = allList.count { it.status == SessionStatus.RUNNING || it.status == SessionStatus.PATCHING }
-                    val reviewCount = allList.count { it.status == SessionStatus.NEEDS_REVIEW }
+                            // Live Execution Progress
+                            when (activeSession.status) {
+                                SessionStatus.RUNNING, SessionStatus.PATCHING -> {
+                                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Sync,
+                                                    contentDescription = null,
+                                                    tint = JulesSecondary,
+                                                    modifier = Modifier.size(16.dp)
+                                                )
+                                                Text(
+                                                    text = activeSession.currentStep,
+                                                    style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
+                                                    color = JulesSecondary
+                                                )
+                                            }
+                                            Text(
+                                                text = "${activeSession.progressPercent}%",
+                                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                                                color = JulesSecondary
+                                            )
+                                        }
 
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .horizontalScroll(rememberScrollState()),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                        LinearProgressIndicator(
+                                            progress = { activeSession.progressPercent / 100f },
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .height(6.dp)
+                                                .clip(RoundedCornerShape(3.dp)),
+                                            color = JulesSecondary,
+                                            trackColor = JulesSurfaceLowest
+                                        )
+
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween
+                                        ) {
+                                            Text(
+                                                text = activeSession.testSuiteInfo,
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = JulesOutline
+                                            )
+                                            Text(
+                                                text = activeSession.etaRemaining,
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = JulesOutline
+                                            )
+                                        }
+                                    }
+                                }
+                                SessionStatus.NEEDS_REVIEW -> {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .background(JulesTertiary.copy(alpha = 0.12f), RoundedCornerShape(8.dp))
+                                            .padding(10.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Column {
+                                            Text(
+                                                text = "Pull Request #${activeSession.prNumber} Generated",
+                                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                                                color = MaterialTheme.colorScheme.onSurface
+                                            )
+                                            Text(
+                                                text = "+${activeSession.diffAdded} additions • -${activeSession.diffRemoved} deletions • ${activeSession.testSuiteInfo}",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = JulesOutline
+                                            )
+                                        }
+                                        Box(
+                                            modifier = Modifier
+                                                .background(JulesTertiary, RoundedCornerShape(6.dp))
+                                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                                        ) {
+                                            Text(
+                                                text = "READY",
+                                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                                color = Color.White
+                                            )
+                                        }
+                                    }
+                                }
+                                SessionStatus.COMPLETED -> {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .background(JulesSecondary.copy(alpha = 0.12f), RoundedCornerShape(8.dp))
+                                            .padding(10.dp),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.CheckCircle,
+                                            contentDescription = null,
+                                            tint = JulesSecondary,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                        Text(
+                                            text = "Task completed, tested, and ready for deployment.",
+                                            style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                    }
+                                }
+                                else -> {}
+                            }
+
+                            // Prominent Direct Action Buttons
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Button(
+                                    onClick = onNavigateToLiveDiff,
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .testTag("focus_inspect_diff_btn"),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = JulesPrimaryContainer,
+                                        contentColor = Color.White
+                                    ),
+                                    shape = RoundedCornerShape(10.dp),
+                                    contentPadding = PaddingValues(vertical = 10.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Terminal,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = "Inspect Diff",
+                                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold)
+                                    )
+                                }
+
+                                OutlinedButton(
+                                    onClick = { viewModel.openSessionDrawer(activeSession) },
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .testTag("focus_session_details_btn"),
+                                    shape = RoundedCornerShape(10.dp),
+                                    colors = ButtonDefaults.outlinedButtonColors(
+                                        contentColor = MaterialTheme.colorScheme.onSurface
+                                    ),
+                                    contentPadding = PaddingValues(vertical = 10.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.MergeType,
+                                        contentDescription = null,
+                                        tint = JulesPrimary,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = "PR & Details",
+                                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            } else {
+                item {
+                    // Empty workspace state
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(18.dp),
+                        colors = CardDefaults.cardColors(containerColor = JulesSurfaceContainer)
                     ) {
-                        FilterPill(
-                            label = "All (${allList.size})",
-                            isSelected = currentFilter == "all",
-                            dotColor = null,
-                            onClick = { viewModel.selectedFilter.value = "all" },
-                            tag = "filter_all"
-                        )
-                        FilterPill(
-                            label = "Running ($runningCount)",
-                            isSelected = currentFilter == "running",
-                            dotColor = JulesSecondary,
-                            onClick = { viewModel.selectedFilter.value = "running" },
-                            tag = "filter_running"
-                        )
-                        FilterPill(
-                            label = "Needs Review ($reviewCount)",
-                            isSelected = currentFilter == "needs-review",
-                            dotColor = JulesTertiary,
-                            onClick = { viewModel.selectedFilter.value = "needs-review" },
-                            tag = "filter_needs_review"
-                        )
-                        FilterPill(
-                            label = "Completed (12)",
-                            isSelected = currentFilter == "completed",
-                            dotColor = null,
-                            onClick = { viewModel.selectedFilter.value = "completed" },
-                            tag = "filter_completed"
-                        )
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(24.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(48.dp)
+                                    .background(JulesSurfaceContainerHigh, CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Psychology,
+                                    contentDescription = null,
+                                    tint = JulesPrimary,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+                            Text(
+                                text = "Workspace Idle",
+                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = "Launch a task to start autonomous test execution and code synthesis.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Button(
+                                onClick = onNavigateToNewTask,
+                                colors = ButtonDefaults.buttonColors(containerColor = JulesPrimaryContainer)
+                            ) {
+                                Text("+ Launch New Task")
+                            }
+                        }
                     }
                 }
             }
 
-            // 3. Session Cards
-            if (filteredList.isEmpty()) {
-                item {
-                    Column(
+            // 3. Task Switcher & History (Clean, Collapsible / Minimalist)
+            item {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(top = 40.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
+                            .clickable { isQueueExpanded = !isQueueExpanded }
+                            .padding(vertical = 4.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .size(48.dp)
-                                .background(JulesSurfaceContainerHigh, CircleShape),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.SearchOff,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        Column {
+                            Text(
+                                text = "All Sessions & Switcher (${allList.size})",
+                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = if (isQueueExpanded) "Tap card to switch current focus" else "Tap to show full task queue & filters",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = JulesOutline
                             )
                         }
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Text(
-                            text = "No matching sessions",
-                            style = MaterialTheme.typography.headlineSmall,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Text(
-                            text = "Try clearing filters or search queries",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+
+                        Icon(
+                            imageVector = if (isQueueExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                            contentDescription = "Toggle Queue",
+                            tint = JulesOutline
                         )
                     }
+
+                    AnimatedVisibility(visible = isQueueExpanded) {
+                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            // Search Box
+                            OutlinedTextField(
+                                value = query,
+                                onValueChange = { viewModel.searchQuery.value = it },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .testTag("session_search_input"),
+                                placeholder = {
+                                    Text(
+                                        "Filter repositories, branches, or tasks...",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = JulesOutline
+                                    )
+                                },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Default.Search,
+                                        contentDescription = "Search",
+                                        tint = JulesPrimary,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                },
+                                trailingIcon = {
+                                    if (query.isNotEmpty()) {
+                                        IconButton(onClick = { viewModel.searchQuery.value = "" }) {
+                                            Icon(
+                                                imageVector = Icons.Default.Close,
+                                                contentDescription = "Clear",
+                                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                        }
+                                    }
+                                },
+                                shape = RoundedCornerShape(12.dp),
+                                singleLine = true,
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedContainerColor = JulesSurfaceContainer,
+                                    unfocusedContainerColor = JulesSurfaceContainer,
+                                    focusedBorderColor = JulesPrimary,
+                                    unfocusedBorderColor = JulesOutlineVariant.copy(alpha = 0.5f),
+                                    focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                                    unfocusedTextColor = MaterialTheme.colorScheme.onSurface
+                                )
+                            )
+
+                            // Filter Chips Row
+                            val runningCount = allList.count { it.status == SessionStatus.RUNNING || it.status == SessionStatus.PATCHING }
+                            val reviewCount = allList.count { it.status == SessionStatus.NEEDS_REVIEW }
+
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .horizontalScroll(rememberScrollState()),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                FilterPill(
+                                    label = "All (${allList.size})",
+                                    isSelected = currentFilter == "all",
+                                    dotColor = null,
+                                    onClick = { viewModel.selectedFilter.value = "all" },
+                                    tag = "filter_all"
+                                )
+                                FilterPill(
+                                    label = "Running ($runningCount)",
+                                    isSelected = currentFilter == "running",
+                                    dotColor = JulesSecondary,
+                                    onClick = { viewModel.selectedFilter.value = "running" },
+                                    tag = "filter_running"
+                                )
+                                FilterPill(
+                                    label = "Needs Review ($reviewCount)",
+                                    isSelected = currentFilter == "needs-review",
+                                    dotColor = JulesTertiary,
+                                    onClick = { viewModel.selectedFilter.value = "needs-review" },
+                                    tag = "filter_needs_review"
+                                )
+                                FilterPill(
+                                    label = "Completed (12)",
+                                    isSelected = currentFilter == "completed",
+                                    dotColor = null,
+                                    onClick = { viewModel.selectedFilter.value = "completed" },
+                                    tag = "filter_completed"
+                                )
+                            }
+                        }
+                    }
                 }
-            } else {
-                items(filteredList, key = { it.id }) { session ->
-                    SessionCard(
-                        session = session,
-                        onViewDiff = onNavigateToLiveDiff,
-                        onReviewGithub = { viewModel.openSessionDrawer(session) },
-                        onLiveWorkspace = onNavigateToLiveDiff,
-                        onCardClick = { viewModel.openSessionDrawer(session) }
-                    )
+            }
+
+            // 4. Session Cards (Rendered when expanded, or if user searches)
+            if (isQueueExpanded || query.isNotEmpty()) {
+                if (filteredList.isEmpty()) {
+                    item {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 20.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(48.dp)
+                                    .background(JulesSurfaceContainerHigh, CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.SearchOff,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Text(
+                                text = "No matching sessions",
+                                style = MaterialTheme.typography.headlineSmall,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = "Try clearing filters or search queries",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                } else {
+                    items(filteredList, key = { it.id }) { session ->
+                        SessionCard(
+                            session = session,
+                            onViewDiff = onNavigateToLiveDiff,
+                            onReviewGithub = { viewModel.openSessionDrawer(session) },
+                            onLiveWorkspace = onNavigateToLiveDiff,
+                            onCardClick = {
+                                focusedSessionId = session.id
+                                Toast.makeText(context, "Switched focus to #${session.id}", Toast.LENGTH_SHORT).show()
+                            }
+                        )
+                    }
                 }
             }
         }

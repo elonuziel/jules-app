@@ -91,11 +91,11 @@ class MainActivity : ComponentActivity() {
             var showProfileDialog by remember { mutableStateOf(false) }
 
             val subtitle = when (currentTabIndex) {
-                0 -> "Sessions"
+                0 -> "Focus Workspace"
                 1 -> "Sources & Repos"
                 2 -> "New Task"
                 3 -> "Live Diff"
-                4 -> "Keys & Auth"
+                4 -> "Settings"
                 else -> "Workspace"
             }
 

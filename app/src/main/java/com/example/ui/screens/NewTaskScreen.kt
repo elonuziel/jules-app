@@ -103,6 +103,7 @@ fun NewTaskScreen(
     val dispatchSuccessMessage by viewModel.dispatchSuccessMessage.collectAsState()
 
     var repoDropdownExpanded by remember { mutableStateOf(false) }
+    var showAdvancedOptions by remember { mutableStateOf(false) }
     val repoOptions = listOf(
         "google/cloud-android-sdk",
         "google/jules-runtime-engine",
@@ -111,6 +112,10 @@ fun NewTaskScreen(
         "android-gemini-client"
     )
 
+    val advancedChevronRotation by animateFloatAsState(
+        targetValue = if (showAdvancedOptions) 180f else 0f,
+        label = "advanced_chevron_rotate"
+    )
     val accordionChevronRotation by animateFloatAsState(
         targetValue = if (isExecutionSettingsExpanded) 180f else 0f,
         label = "chevron_rotate"

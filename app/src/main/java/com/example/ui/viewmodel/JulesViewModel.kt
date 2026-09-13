@@ -240,7 +240,7 @@ class JulesViewModel(application: Application) : AndroidViewModel(application) {
     val isAutonomous = MutableStateFlow(true)
     val autoTestSuite = MutableStateFlow(true)
     val reasoningBudgetK = MutableStateFlow(64)
-    val isExecutionSettingsExpanded = MutableStateFlow(true)
+    val isExecutionSettingsExpanded = MutableStateFlow(false)
     val isDispatching = MutableStateFlow(false)
     val dispatchSuccessMessage = MutableStateFlow<String?>(null)
 

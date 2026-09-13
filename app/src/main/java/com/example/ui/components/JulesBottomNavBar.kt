@@ -48,11 +48,11 @@ data class NavItem(
 )
 
 val NAV_ITEMS = listOf(
-    NavItem("Sessions", Icons.Default.ViewKanban, "nav_sessions"),
+    NavItem("Focus", Icons.Default.ViewKanban, "nav_sessions"),
     NavItem("Sources", Icons.Default.Source, "nav_sources"),
     NavItem("New Task", Icons.Default.AddCircle, "nav_new_task"),
     NavItem("Live Diff", Icons.Default.Terminal, "nav_live_diff"),
-    NavItem("Keys & Auth", Icons.Default.Key, "nav_api_keys")
+    NavItem("Settings", Icons.Default.Key, "nav_api_keys")
 )
 
 @Composable
