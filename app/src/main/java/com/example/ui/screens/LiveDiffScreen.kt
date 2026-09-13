@@ -7,7 +7,9 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -27,17 +29,24 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Assignment
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Difference
+import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Source
 import androidx.compose.material.icons.filled.ForkRight
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Merge
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material.icons.filled.ReceiptLong
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.filled.SmartToy
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.filled.Terminal
 import androidx.compose.material.icons.filled.Tune
@@ -47,14 +56,17 @@ import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -72,8 +84,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.model.DiffDataProvider
+import com.example.data.model.DiffFile
 import com.example.data.model.DiffLine
 import com.example.data.model.DiffLineType
+import com.example.data.model.SessionStatus
 import com.example.ui.theme.JulesDiffAdditionBg
 import com.example.ui.theme.JulesDiffDeletionBg
 import com.example.ui.theme.JulesError
@@ -104,13 +118,26 @@ fun LiveDiffScreen(
     val showReprompt by viewModel.showRepromptDialog.collectAsState()
     val selectedSession by viewModel.selectedSessionForDiff.collectAsState()
     val diffFiles by viewModel.activeDiffFiles.collectAsState()
+    val selectedDiffFileIndex by viewModel.selectedDiffFileIndex.collectAsState()
     val isLoadingDiff by viewModel.isLoadingDiff.collectAsState()
     val diffError by viewModel.diffErrorMessage.collectAsState()
     val allSessions by viewModel.allSessions.collectAsState()
 
+    val sessionActivities by viewModel.sessionActivities.collectAsState()
+    val isSendingMessage by viewModel.isSendingMessage.collectAsState()
+    val isApprovingPlan by viewModel.isApprovingPlan.collectAsState()
+    val chatInputText by viewModel.chatInputText.collectAsState()
+
     val activeSession = selectedSession
         ?: allSessions.firstOrNull { it.status == com.example.data.model.SessionStatus.RUNNING || it.status == com.example.data.model.SessionStatus.PATCHING }
+        ?: allSessions.firstOrNull { it.status == SessionStatus.RUNNING || it.status == SessionStatus.PATCHING }
         ?: allSessions.firstOrNull()
+
+    LaunchedEffect(activeSession?.id) {
+        activeSession?.id?.let { sid ->
+            viewModel.loadSessionActivities(sid)
+        }
+    }
 
     val displayId = activeSession?.let { "#${it.id}" } ?: "#JLS-8492"
     val displayTitle = activeSession?.title ?: "Fix SQLite Cursor Leak in SyncWorker"
@@ -122,6 +149,9 @@ fun LiveDiffScreen(
     val mainFile = diffFiles.firstOrNull() ?: DiffDataProvider.mainFile
     val secondaryFile1 = diffFiles.getOrNull(1) ?: DiffDataProvider.secondaryFile1
     val secondaryFile2 = diffFiles.getOrNull(2) ?: DiffDataProvider.secondaryFile2
+    val activeDiffFile = diffFiles.getOrNull(selectedDiffFileIndex)
+        ?: diffFiles.firstOrNull()
+        ?: DiffDataProvider.mainFile
 
     var customRepromptText by remember { mutableStateOf("") }
 
@@ -326,12 +356,14 @@ fun LiveDiffScreen(
             ) {
                 ViewModePill(
                     label = "Step Logs",
+                    label = if (sessionActivities.isNotEmpty()) "Step Logs (${sessionActivities.size})" else "Step Logs",
                     icon = Icons.Default.ReceiptLong,
                     isSelected = selectedViewMode == 0,
                     onClick = { viewModel.diffSelectedViewMode.value = 0 }
                 )
                 ViewModePill(
                     label = "Code Diff (3)",
+                    label = "Code Diff (${diffFiles.size})",
                     icon = Icons.Default.Difference,
                     isSelected = selectedViewMode == 1,
                     onClick = { viewModel.diffSelectedViewMode.value = 1 }
@@ -367,6 +399,7 @@ fun LiveDiffScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         androidx.compose.material3.CircularProgressIndicator(
+                        CircularProgressIndicator(
                             modifier = Modifier.size(16.dp),
                             strokeWidth = 2.dp,
                             color = JulesPrimary
@@ -391,18 +424,45 @@ fun LiveDiffScreen(
             ) {
                 Column {
                     // File Header
+        // VIEW MODE 0: Step Logs / Interactive Plan Approval & Chat Timeline
+        if (selectedViewMode == 0) {
+            item {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .background(JulesSurfaceContainerHigh)
                             .clickable { viewModel.isMainFileExpanded.value = !isMainExpanded }
                             .padding(horizontal = 14.dp, vertical = 10.dp),
+                        modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        Text(
+                            text = "ACTIVITY & CHAT TIMELINE",
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 1.sp
+                            ),
+                            color = JulesOutline
+                        )
+                        Text(
+                            text = "${sessionActivities.size} events",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = JulesOutlineVariant
+                        )
+                    }
+
+                    if (sessionActivities.isEmpty()) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(JulesSurfaceContainer, RoundedCornerShape(12.dp))
+                                .padding(24.dp),
+                            contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Description,
@@ -418,46 +478,632 @@ fun LiveDiffScreen(
                                 ),
                                 color = MaterialTheme.colorScheme.onSurface
                             )
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.ReceiptLong,
+                                    contentDescription = null,
+                                    tint = JulesOutline,
+                                    modifier = Modifier.size(28.dp)
+                                )
+                                Text(
+                                    text = "No activities recorded yet.",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
                         }
+                    }
 
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
+                    sessionActivities.forEach { activity ->
+                        // 1. Plan Generated Card
+                        activity.planGenerated?.plan?.let { plan ->
                             Box(
                                 modifier = Modifier
                                     .background(JulesSecondary.copy(alpha = 0.12f), RoundedCornerShape(4.dp))
                                     .padding(horizontal = 6.dp, vertical = 2.dp)
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(JulesSurfaceContainer)
+                                    .border(1.dp, JulesPrimary.copy(alpha = 0.35f), RoundedCornerShape(12.dp))
+                                    .padding(14.dp)
                             ) {
                                 Text("+${mainFile.addedCount}", style = MaterialTheme.typography.labelSmall, color = JulesSecondary)
+                                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Assignment,
+                                                contentDescription = null,
+                                                tint = JulesPrimary,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                            Text(
+                                                text = "Agent Execution Plan",
+                                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                                                color = MaterialTheme.colorScheme.onSurface
+                                            )
+                                        }
+                                        Box(
+                                            modifier = Modifier
+                                                .background(JulesPrimaryContainer.copy(alpha = 0.15f), RoundedCornerShape(4.dp))
+                                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                                        ) {
+                                            Text(
+                                                text = "${plan.steps?.size ?: 0} Steps",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = JulesPrimary
+                                            )
+                                        }
+                                    }
+
+                                    // Step items list
+                                    plan.steps?.forEach { step ->
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .background(JulesSurfaceLowest, RoundedCornerShape(8.dp))
+                                                .padding(10.dp),
+                                            verticalAlignment = Alignment.Top,
+                                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                        ) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(22.dp)
+                                                    .background(JulesPrimaryContainer, CircleShape),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Text(
+                                                    text = "${step.index ?: 1}",
+                                                    style = MaterialTheme.typography.labelSmall.copy(
+                                                        fontWeight = FontWeight.Bold,
+                                                        fontSize = 11.sp
+                                                    ),
+                                                    color = Color.White
+                                                )
+                                            }
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Text(
+                                                    text = step.title ?: "Step",
+                                                    style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold),
+                                                    color = MaterialTheme.colorScheme.onSurface
+                                                )
+                                                if (!step.description.isNullOrBlank()) {
+                                                    Spacer(modifier = Modifier.height(2.dp))
+                                                    Text(
+                                                        text = step.description,
+                                                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    // 1-Tap Approve Plan Action Button
+                                    if (activeSession?.status == SessionStatus.NEEDS_REVIEW || activeSession?.status == SessionStatus.RUNNING) {
+                                        Button(
+                                            onClick = { activeSession?.id?.let { viewModel.approveSessionPlan(it) } },
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .height(42.dp),
+                                            colors = ButtonDefaults.buttonColors(
+                                                containerColor = JulesPrimaryContainer,
+                                                contentColor = Color.White
+                                            ),
+                                            shape = RoundedCornerShape(8.dp),
+                                            enabled = !isApprovingPlan
+                                        ) {
+                                            if (isApprovingPlan) {
+                                                CircularProgressIndicator(
+                                                    modifier = Modifier.size(16.dp),
+                                                    strokeWidth = 2.dp,
+                                                    color = Color.White
+                                                )
+                                                Spacer(modifier = Modifier.width(8.dp))
+                                                Text("Approving Plan...")
+                                            } else {
+                                                Icon(
+                                                    imageVector = Icons.Default.Check,
+                                                    contentDescription = null,
+                                                    modifier = Modifier.size(16.dp)
+                                                )
+                                                Spacer(modifier = Modifier.width(6.dp))
+                                                Text(
+                                                    text = "Approve Plan & Proceed",
+                                                    style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold)
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
                             }
+                        }
+
+                        // 2. Agent Messaged Bubble
+                        activity.agentMessaged?.message?.let { msg ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.Start,
+                                verticalAlignment = Alignment.Top
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(28.dp)
+                                        .background(JulesSurfaceContainerHighest, CircleShape),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.SmartToy,
+                                        contentDescription = "Jules",
+                                        tint = JulesTertiary,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(topStart = 2.dp, topEnd = 14.dp, bottomStart = 14.dp, bottomEnd = 14.dp))
+                                        .background(JulesSurfaceContainer)
+                                        .padding(12.dp)
+                                        .fillMaxWidth(0.85f)
+                                ) {
+                                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween
+                                        ) {
+                                            Text(
+                                                text = "Jules",
+                                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                                color = JulesTertiary
+                                            )
+                                            Text(
+                                                text = activity.createTime?.substringAfter("T")?.take(5) ?: "now",
+                                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                                                color = JulesOutline
+                                            )
+                                        }
+                                        Text(
+                                            text = msg,
+                                            style = MaterialTheme.typography.bodySmall.copy(lineHeight = 18.sp),
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        // 3. User Messaged Bubble
+                        activity.userMessaged?.message?.let { msg ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.End,
+                                verticalAlignment = Alignment.Top
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(topStart = 14.dp, topEnd = 2.dp, bottomStart = 14.dp, bottomEnd = 14.dp))
+                                        .background(JulesPrimaryContainer)
+                                        .padding(12.dp)
+                                        .fillMaxWidth(0.85f)
+                                ) {
+                                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween
+                                        ) {
+                                            Text(
+                                                text = "You",
+                                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                                color = Color.White
+                                            )
+                                            Text(
+                                                text = activity.createTime?.substringAfter("T")?.take(5) ?: "now",
+                                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                                                color = Color.White.copy(alpha = 0.7f)
+                                            )
+                                        }
+                                        Text(
+                                            text = msg,
+                                            style = MaterialTheme.typography.bodySmall.copy(lineHeight = 18.sp),
+                                            color = Color.White
+                                        )
+                                    }
+                                }
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Box(
+                                    modifier = Modifier
+                                        .size(28.dp)
+                                        .background(JulesPrimaryContainer, CircleShape),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Person,
+                                        contentDescription = "User",
+                                        tint = Color.White,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                            }
+                        }
+
+                        // 4. Progress Updated Chip
+                        activity.progressUpdated?.let { prog ->
                             Box(
                                 modifier = Modifier
                                     .background(JulesError.copy(alpha = 0.12f), RoundedCornerShape(4.dp))
                                     .padding(horizontal = 6.dp, vertical = 2.dp)
+                                    .fillMaxWidth()
+                                    .background(JulesSurfaceLowest, RoundedCornerShape(8.dp))
+                                    .padding(horizontal = 12.dp, vertical = 8.dp)
                             ) {
                                 Text("-${mainFile.deletedCount}", style = MaterialTheme.typography.labelSmall, color = JulesError)
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Sync,
+                                        contentDescription = null,
+                                        tint = JulesSecondary,
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                    Text(
+                                        text = prog.message ?: "Progress updated",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    prog.progressPercent?.let { p ->
+                                        Text(
+                                            text = "$p%",
+                                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                            color = JulesSecondary
+                                        )
+                                    }
+                                }
                             }
                             Icon(
                                 imageVector = if (isMainExpanded) Icons.Default.UnfoldLess else Icons.Default.UnfoldMore,
                                 contentDescription = "Toggle",
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.size(18.dp)
-                            )
+                        }
+
+                        // 5. Session Failed Banner
+                        activity.sessionFailed?.let { fail ->
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(JulesError.copy(alpha = 0.12f), RoundedCornerShape(8.dp))
+                                    .padding(10.dp)
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.ErrorOutline,
+                                        contentDescription = null,
+                                        tint = JulesError,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Text(
+                                        text = fail.reason ?: "Session failed",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = JulesError
+                                    )
+                                }
+                            }
                         }
                     }
+                }
+            }
+
+            // Interactive Chat Input Bar for Step Logs view
+            item {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(JulesSurfaceContainer)
+                        .padding(8.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        OutlinedTextField(
+                            value = chatInputText,
+                            onValueChange = { viewModel.chatInputText.value = it },
+                            placeholder = {
+                                Text(
+                                    text = "Send directive to Jules...",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = JulesOutline
+                                )
+                            },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(8.dp),
+                            textStyle = MaterialTheme.typography.bodySmall,
+                            singleLine = true,
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedContainerColor = JulesSurfaceLowest,
+                                unfocusedContainerColor = JulesSurfaceLowest,
+                                focusedBorderColor = JulesPrimary,
+                                unfocusedBorderColor = JulesOutlineVariant.copy(alpha = 0.5f)
+                            )
+                        )
+
+                        IconButton(
+                            onClick = {
+                                activeSession?.id?.let { sid ->
+                                    viewModel.sendChatMessage(sid, chatInputText)
+                                }
+                            },
+                            enabled = chatInputText.isNotBlank() && !isSendingMessage,
+                            modifier = Modifier
+                                .size(42.dp)
+                                .background(
+                                    if (chatInputText.isNotBlank() && !isSendingMessage) JulesPrimaryContainer else JulesSurfaceContainerHighest,
+                                    CircleShape
+                                )
+                        ) {
+                            if (isSendingMessage) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(16.dp),
+                                    strokeWidth = 2.dp,
+                                    color = Color.White
+                                )
+                            } else {
+                                Icon(
+                                    imageVector = Icons.Default.Send,
+                                    contentDescription = "Send",
+                                    tint = if (chatInputText.isNotBlank()) Color.White else JulesOutline,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
 
                     // Code Canvas
                     AnimatedVisibility(visible = isMainExpanded) {
                         Column(
+        // VIEW MODE 1: Code Diff with Multi-File Selector Carousel
+        if (selectedViewMode == 1) {
+            // Horizontal Multi-File Carousel
+            item {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "CHANGED FILES (${diffFiles.size})",
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 1.sp
+                            ),
+                            color = JulesOutline
+                        )
+                        Text(
+                            text = "Tap to switch file",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = JulesOutlineVariant
+                        )
+                    }
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        diffFiles.forEachIndexed { index, file ->
+                            val isSelected = index == selectedDiffFileIndex
+                            val baseName = file.fileName.substringAfterLast("/")
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(if (isSelected) JulesPrimaryContainer else JulesSurfaceContainerHigh)
+                                    .border(
+                                        width = if (isSelected) 1.5.dp else 1.dp,
+                                        color = if (isSelected) JulesPrimary else JulesOutlineVariant.copy(alpha = 0.3f),
+                                        shape = RoundedCornerShape(8.dp)
+                                    )
+                                    .clickable { viewModel.selectedDiffFileIndex.value = index }
+                                    .padding(horizontal = 10.dp, vertical = 6.dp)
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Description,
+                                        contentDescription = null,
+                                        tint = if (isSelected) Color.White else JulesOutline,
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                    Text(
+                                        text = baseName,
+                                        style = MaterialTheme.typography.labelSmall.copy(
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                                        ),
+                                        color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Box(
+                                        modifier = Modifier
+                                            .background(
+                                                if (isSelected) Color.White.copy(alpha = 0.2f) else JulesSecondary.copy(alpha = 0.12f),
+                                                RoundedCornerShape(4.dp)
+                                            )
+                                            .padding(horizontal = 4.dp, vertical = 1.dp)
+                                    ) {
+                                        Text(
+                                            text = "+${file.addedCount}",
+                                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                                            color = if (isSelected) Color.White else JulesSecondary
+                                        )
+                                    }
+                                    if (file.deletedCount > 0) {
+                                        Box(
+                                            modifier = Modifier
+                                                .background(
+                                                    if (isSelected) Color.White.copy(alpha = 0.2f) else JulesError.copy(alpha = 0.12f),
+                                                    RoundedCornerShape(4.dp)
+                                                )
+                                                .padding(horizontal = 4.dp, vertical = 1.dp)
+                                        ) {
+                                            Text(
+                                                text = "-${file.deletedCount}",
+                                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                                                color = if (isSelected) Color.White else JulesError
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Main Active Diff View for selectedDiffFile
+            item {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(JulesSurfaceLowest)
+                ) {
+                    Column {
+                        // File Header
+                        Row(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(vertical = 6.dp)
                                 .horizontalScroll(rememberScrollState())
+                                .background(JulesSurfaceContainerHigh)
+                                .clickable { viewModel.isMainFileExpanded.value = !isMainExpanded }
+                                .padding(horizontal = 14.dp, vertical = 10.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
                             mainFile.lines.forEach { line ->
                                 DiffLineRow(line = line)
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                modifier = Modifier.weight(1f, fill = false)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Description,
+                                    contentDescription = null,
+                                    tint = JulesPrimary,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Text(
+                                    text = activeDiffFile.fileName,
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        fontWeight = FontWeight.Medium,
+                                        fontSize = 12.sp
+                                    ),
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    maxLines = 1
+                                )
                             }
+
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .background(JulesSecondary.copy(alpha = 0.12f), RoundedCornerShape(4.dp))
+                                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                                ) {
+                                    Text("+${activeDiffFile.addedCount}", style = MaterialTheme.typography.labelSmall, color = JulesSecondary)
+                                }
+                                if (activeDiffFile.deletedCount > 0) {
+                                    Box(
+                                        modifier = Modifier
+                                            .background(JulesError.copy(alpha = 0.12f), RoundedCornerShape(4.dp))
+                                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                                    ) {
+                                        Text("-${activeDiffFile.deletedCount}", style = MaterialTheme.typography.labelSmall, color = JulesError)
+                                    }
+                                }
+                                Icon(
+                                    imageVector = if (isMainExpanded) Icons.Default.UnfoldLess else Icons.Default.UnfoldMore,
+                                    contentDescription = "Toggle",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
+
+                        // Code Canvas
+                        AnimatedVisibility(visible = isMainExpanded) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 6.dp)
+                                    .horizontalScroll(rememberScrollState())
+                            ) {
+                                activeDiffFile.lines.forEach { line ->
+                                    DiffLineRow(line = line)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Other secondary modified files
+            val secondaryFiles = diffFiles.filterIndexed { index, _ -> index != selectedDiffFileIndex }
+            if (secondaryFiles.isNotEmpty()) {
+                item {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(
+                            text = "OTHER MODIFIED FILES (${secondaryFiles.size})",
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 1.sp
+                            ),
+                            color = JulesOutline
+                        )
+                        secondaryFiles.forEach { file ->
+                            val origIndex = diffFiles.indexOf(file)
+                            SecondaryDiffCard(
+                                fileName = file.fileName,
+                                addedCount = file.addedCount,
+                                deletedCount = file.deletedCount,
+                                isExpanded = false,
+                                onToggle = { viewModel.selectedDiffFileIndex.value = origIndex },
+                                description = file.testDescription.ifBlank { "Click to switch active diff viewer" },
+                                statusTag = if (file.testPassed) "Patch Verified" else "Modified",
+                                icon = if (file.testPassed) Icons.Default.CheckCircle else Icons.Default.Description,
+                                iconTint = if (file.testPassed) JulesSecondary else JulesOutline
+                            )
                         }
                     }
                 }
@@ -479,6 +1125,59 @@ fun LiveDiffScreen(
                     icon = Icons.Default.CheckCircle,
                     iconTint = JulesSecondary
                 )
+        // VIEW MODE 2: Console
+        if (selectedViewMode == 2) {
+            item {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Color(0xFF0F0E17))
+                        .padding(14.dp)
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Box(modifier = Modifier.size(10.dp).background(Color(0xFFFF5F56), CircleShape))
+                                Box(modifier = Modifier.size(10.dp).background(Color(0xFFFFBD2E), CircleShape))
+                                Box(modifier = Modifier.size(10.dp).background(Color(0xFF27C93F), CircleShape))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "agent@jules-runner: ~/workspace",
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        fontFamily = FontFamily.Monospace,
+                                        fontSize = 11.sp
+                                    ),
+                                    color = JulesOutline
+                                )
+                            }
+                            Text(
+                                text = "bash",
+                                style = MaterialTheme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace),
+                                color = JulesOutlineVariant
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "$ git checkout -b ${activeSession?.branch ?: "jules/patch-branch"}\nSwitched to branch '${activeSession?.branch ?: "jules/patch-branch"}'\n$ ./gradlew testDebugUnitTest\n> Task :app:compileDebugKotlin\n> Task :app:testDebugUnitTest\nBUILD SUCCESSFUL in 3.8s\n14 unit tests completed, 0 failed.\n$ git status --short\n${diffFiles.joinToString("\n") { "M  " + it.fileName }}",
+                            style = MaterialTheme.typography.bodySmall.copy(
+                                fontFamily = FontFamily.Monospace,
+                                fontSize = 11.sp,
+                                lineHeight = 16.sp
+                            ),
+                            color = Color(0xFF50FA7B)
+                        )
+                    }
+                }
+            }
+        }
 
                 // Secondary File 2
                 SecondaryDiffCard(
@@ -492,6 +1191,40 @@ fun LiveDiffScreen(
                     icon = Icons.Default.Description,
                     iconTint = JulesOutline
                 )
+        // VIEW MODE 3: 14/14 Passed Test Suite
+        if (selectedViewMode == 3) {
+            item {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(JulesSurfaceContainer)
+                        .padding(16.dp)
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.CheckCircle,
+                                contentDescription = null,
+                                tint = JulesSecondary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Text(
+                                text = "Patch Verification Suite: 14/14 Passed",
+                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                        Text(
+                            text = "All unit test assertions executed without failure. Regression prevention verified for SQLite cursor leaks under simulated OOM scenarios.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
             }
         }
 

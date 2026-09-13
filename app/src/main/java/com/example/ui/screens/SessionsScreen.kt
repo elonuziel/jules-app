@@ -35,11 +35,13 @@ import androidx.compose.material.icons.filled.CallMerge
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DataObject
+import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.MergeType
 import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.Psychology
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.RotateRight
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Search
@@ -117,6 +119,8 @@ fun SessionsScreen(
     val query by viewModel.searchQuery.collectAsState()
     val currentFilter by viewModel.selectedFilter.collectAsState()
     val activeDrawerSession by viewModel.activeDrawerSession.collectAsState()
+    val isRefreshing by viewModel.isRefreshingSessions.collectAsState()
+    val connectivityError by viewModel.connectivityErrorMessage.collectAsState()
 
     var focusedSessionId by remember { mutableStateOf<String?>(null) }
     var isQueueExpanded by remember { mutableStateOf(false) }
@@ -133,6 +137,55 @@ fun SessionsScreen(
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 100.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
+            // 0. Connectivity or API Key Error Banner
+            if (connectivityError != null) {
+                item {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(JulesError.copy(alpha = 0.12f))
+                            .border(1.dp, JulesError.copy(alpha = 0.35f), RoundedCornerShape(12.dp))
+                            .padding(12.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.ErrorOutline,
+                                    contentDescription = null,
+                                    tint = JulesError,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Text(
+                                    text = connectivityError ?: "",
+                                    style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                            IconButton(
+                                onClick = { viewModel.dismissConnectivityError() },
+                                modifier = Modifier.size(28.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = "Dismiss",
+                                    tint = JulesOutline,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
             // 1. Clean Focus Workspace Header
             item {
                 Row(
@@ -167,15 +220,26 @@ fun SessionsScreen(
                                 RoundedCornerShape(20.dp)
                             )
                             .padding(horizontal = 10.dp, vertical = 5.dp)
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        IconButton(
+                            onClick = { viewModel.refreshSessions() },
+                            modifier = Modifier.size(34.dp)
                         ) {
                             Box(
                                 modifier = Modifier
                                     .size(8.dp)
                                     .background(if (runningCount > 0) JulesSecondary else JulesOutline, CircleShape)
+                            Icon(
+                                imageVector = Icons.Default.Refresh,
+                                contentDescription = "Refresh Sessions",
+                                tint = if (isRefreshing) JulesSecondary else JulesOutline,
+                                modifier = Modifier.size(18.dp)
                             )
                             Text(
                                 text = if (runningCount > 0) "$runningCount Active" else "Standing By",
@@ -183,7 +247,48 @@ fun SessionsScreen(
                                 color = if (runningCount > 0) JulesSecondary else MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
+
+                        // Live pulse indicator
+                        val runningCount = allList.count { it.status == SessionStatus.RUNNING || it.status == SessionStatus.PATCHING }
+                        Box(
+                            modifier = Modifier
+                                .background(
+                                    if (runningCount > 0) JulesSecondary.copy(alpha = 0.12f) else JulesSurfaceContainerHigh,
+                                    RoundedCornerShape(20.dp)
+                                )
+                                .padding(horizontal = 10.dp, vertical = 5.dp)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(8.dp)
+                                        .background(if (runningCount > 0) JulesSecondary else JulesOutline, CircleShape)
+                                )
+                                Text(
+                                    text = if (runningCount > 0) "$runningCount Active" else "Standing By",
+                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
+                                    color = if (runningCount > 0) JulesSecondary else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
                     }
+                }
+            }
+
+            // Optional refresh loading bar
+            if (isRefreshing) {
+                item {
+                    LinearProgressIndicator(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(3.dp)
+                            .clip(RoundedCornerShape(2.dp)),
+                        color = JulesPrimary,
+                        trackColor = JulesSurfaceContainerHigh
+                    )
                 }
             }
 
@@ -775,6 +880,10 @@ fun SessionsScreen(
                 viewModel.closeSessionDrawer()
                 viewModel.loadDiffForSession(s)
                 onNavigateToLiveDiff()
+            },
+            onApprovePlan = { s ->
+                viewModel.approveSessionPlan(s.id)
+                Toast.makeText(context, "Plan Approved for #${s.id}! Jules will now synthesize patch.", Toast.LENGTH_SHORT).show()
             }
         )
     }

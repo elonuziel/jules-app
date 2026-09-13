@@ -93,6 +93,8 @@ fun SessionDrawerSheet(
     onMergePr: (SessionItem) -> Unit,
     onDeleteBranch: (SessionItem) -> Unit,
     onInspectDiff: (SessionItem) -> Unit = {}
+    onInspectDiff: (SessionItem) -> Unit = {},
+    onApprovePlan: ((SessionItem) -> Unit)? = null
 ) {
     val context = LocalContext.current
     val clipboardManager = LocalClipboardManager.current
@@ -433,10 +435,33 @@ fun EnhancedPullRequestCard(
             }
 
             // 3. ACTION BUTTONS ROW:
+            // - Approve Plan button (shown when task needs review / plan approval)
             // - Approve PR button (with toast & status refresh)
             // - Merge PR button (with confirmation modal & squash-merge)
             // - Delete Branch button (shown when PR is merged/closed to delete remote branch)
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (session.status == SessionStatus.NEEDS_REVIEW) {
+                    Button(
+                        onClick = { onApprovePlan?.invoke(session) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(44.dp)
+                            .testTag("drawer_approve_plan_btn"),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = JulesPrimaryContainer,
+                            contentColor = Color.White
+                        ),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Icon(imageVector = Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Approve Execution Plan & Proceed",
+                            style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold)
+                        )
+                    }
+                }
+
                 if (session.prStatus == PullRequestStatus.OPEN) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),

@@ -71,4 +71,47 @@ class JulesUnitTest {
             com.example.ui.theme.JulesLightColorScheme.surface
         )
     }
+
+    @Test
+    fun testSampleActivities() {
+        val activities = DiffDataProvider.getSampleActivities("JLS-8492")
+        assertTrue("Activities should not be empty", activities.isNotEmpty())
+        
+        val planActivity = activities.firstOrNull { it.planGenerated != null }
+        assertNotNull("Must include plan generated activity", planActivity)
+        val steps = planActivity?.planGenerated?.plan?.steps
+        assertNotNull("Plan steps must not be null", steps)
+        assertEquals(3, steps?.size)
+        assertEquals("Locate cursor management routines", steps?.firstOrNull()?.title)
+
+        val agentMsg = activities.firstOrNull { it.agentMessaged != null }
+        assertNotNull("Must include agent message", agentMsg)
+        assertTrue(agentMsg?.agentMessaged?.message?.contains("SQLite cursor leak") == true)
+
+        val userMsg = activities.firstOrNull { it.userMessaged != null }
+        assertNotNull("Must include user message", userMsg)
+        assertTrue(userMsg?.userMessaged?.message?.contains("API 24+") == true)
+
+        val prog = activities.firstOrNull { it.progressUpdated != null }
+        assertNotNull("Must include progress updated", prog)
+        assertEquals(75, prog?.progressUpdated?.progressPercent)
+    }
+
+    @Test
+    fun testMultiFileDiffList() {
+        val files = listOf(
+            DiffDataProvider.mainFile,
+            DiffDataProvider.secondaryFile1,
+            DiffDataProvider.secondaryFile2
+        )
+        assertEquals(3, files.size)
+        assertEquals(".../sync/SyncWorker.kt", files[0].fileName)
+        assertEquals(".../sync/SyncWorkerTest.kt", files[1].fileName)
+        assertEquals(".../sync/DatabaseHelper.kt", files[2].fileName)
+
+        val totalAdded = files.sumOf { it.addedCount }
+        val totalDeleted = files.sumOf { it.deletedCount }
+        assertEquals(18 + 42 + 4, totalAdded)
+        assertEquals(6 + 0 + 1, totalDeleted)
+    }
 }

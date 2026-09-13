@@ -53,4 +53,69 @@ object DiffDataProvider {
         testDescription = "// Added StrictMode thread policy tag for cursor leak early detection.",
         testPassed = true
     )
+
+    fun getSampleActivities(sessionId: String): List<com.example.data.remote.dto.JulesActivityDto> {
+        return listOf(
+            com.example.data.remote.dto.JulesActivityDto(
+                id = "act-1",
+                createTime = "2026-09-13T10:00:00Z",
+                originator = "ORIGINATOR_AGENT",
+                description = "Jules analyzed the issue and drafted an execution plan.",
+                planGenerated = com.example.data.remote.dto.JulesPlanGeneratedDto(
+                    plan = com.example.data.remote.dto.JulesPlanDto(
+                        steps = listOf(
+                            com.example.data.remote.dto.JulesPlanStepDto(
+                                index = 1,
+                                title = "Locate cursor management routines",
+                                description = "Identify query execution points in SyncWorker.kt"
+                            ),
+                            com.example.data.remote.dto.JulesPlanStepDto(
+                                index = 2,
+                                title = "Wrap with AutoCloseable scoping",
+                                description = "Refactor db.rawQuery to use Kotlin .use { } block"
+                            ),
+                            com.example.data.remote.dto.JulesPlanStepDto(
+                                index = 3,
+                                title = "Add regression unit tests",
+                                description = "Simulate intermittent exceptions and assert cursor closure"
+                            )
+                        )
+                    )
+                )
+            ),
+            com.example.data.remote.dto.JulesActivityDto(
+                id = "act-2",
+                createTime = "2026-09-13T10:01:00Z",
+                originator = "ORIGINATOR_AGENT",
+                agentMessaged = com.example.data.remote.dto.JulesAgentMessagedDto(
+                    message = "I have drafted the plan to fix the SQLite cursor leak. Please review the plan steps above and approve so I can proceed with code generation."
+                )
+            ),
+            com.example.data.remote.dto.JulesActivityDto(
+                id = "act-3",
+                createTime = "2026-09-13T10:02:00Z",
+                originator = "ORIGINATOR_USER",
+                userMessaged = com.example.data.remote.dto.JulesUserMessagedDto(
+                    message = "Please ensure strict backward compatibility with Android API 24+."
+                )
+            ),
+            com.example.data.remote.dto.JulesActivityDto(
+                id = "act-4",
+                createTime = "2026-09-13T10:02:30Z",
+                originator = "ORIGINATOR_AGENT",
+                agentMessaged = com.example.data.remote.dto.JulesAgentMessagedDto(
+                    message = "Understood. The .use extension function is part of kotlin-stdlib and supports API 24+ without desugaring issues."
+                )
+            ),
+            com.example.data.remote.dto.JulesActivityDto(
+                id = "act-5",
+                createTime = "2026-09-13T10:03:00Z",
+                originator = "ORIGINATOR_AGENT",
+                progressUpdated = com.example.data.remote.dto.JulesProgressUpdatedDto(
+                    progressPercent = 75,
+                    message = "Patch synthesized and verifying against test suite"
+                )
+            )
+        )
+    }
 }

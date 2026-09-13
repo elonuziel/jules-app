@@ -191,6 +191,59 @@ class JulesRepository(
         }
     }
 
+    suspend fun fetchSessionActivities(apiKey: String, sessionId: String): Result<List<com.example.data.remote.dto.JulesActivityDto>> = withContext(Dispatchers.IO) {
+        try {
+            if (apiKey.isBlank()) {
+                return@withContext Result.failure(IllegalArgumentException("Jules API key is missing"))
+            }
+            val cleanId = sessionId.trim().removePrefix("sessions/")
+            val response = julesApi.getSessionActivities(apiKey = apiKey.trim(), sessionId = cleanId, pageSize = 50)
+            Result.success(response.activities)
+        } catch (e: Exception) {
+            Log.e(tag, "Failed to fetch session activities", e)
+            Result.failure(e)
+        }
+    }
+
+    suspend fun approvePlan(apiKey: String, sessionId: String): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            if (apiKey.isBlank()) {
+                return@withContext Result.failure(IllegalArgumentException("Jules API key is missing"))
+            }
+            val cleanId = sessionId.trim().removePrefix("sessions/")
+            julesApi.approvePlan(apiKey = apiKey.trim(), sessionId = cleanId)
+            val existing = dao.getSessionById(cleanId)
+            if (existing != null) {
+                dao.updateSession(existing.copy(status = SessionStatus.RUNNING.name, prApproved = true))
+            }
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e(tag, "Failed to approve plan on Jules API", e)
+            Result.failure(e)
+        }
+    }
+
+    suspend fun sendSessionMessage(apiKey: String, sessionId: String, message: String): Result<com.example.data.remote.dto.JulesActivityDto> = withContext(Dispatchers.IO) {
+        try {
+            if (apiKey.isBlank()) {
+                return@withContext Result.failure(IllegalArgumentException("Jules API key is missing"))
+            }
+            if (message.isBlank()) {
+                return@withContext Result.failure(IllegalArgumentException("Message cannot be empty"))
+            }
+            val cleanId = sessionId.trim().removePrefix("sessions/")
+            val result = julesApi.sendMessage(
+                apiKey = apiKey.trim(),
+                sessionId = cleanId,
+                body = com.example.data.remote.dto.JulesSendMessageRequestDto(prompt = message.trim())
+            )
+            Result.success(result)
+        } catch (e: Exception) {
+            Log.e(tag, "Failed to send message to Jules API", e)
+            Result.failure(e)
+        }
+    }
+
     // ==================== GITHUB API METHODS ====================
 
     suspend fun loadPullRequestDiff(

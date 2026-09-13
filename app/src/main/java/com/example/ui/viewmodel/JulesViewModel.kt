@@ -102,8 +102,23 @@ class JulesViewModel(application: Application) : AndroidViewModel(application) {
     val activeDiffFiles = MutableStateFlow<List<DiffFile>>(
         listOf(DiffDataProvider.mainFile, DiffDataProvider.secondaryFile1, DiffDataProvider.secondaryFile2)
     )
+    val selectedDiffFileIndex = MutableStateFlow(0)
     val isLoadingDiff = MutableStateFlow(false)
     val diffErrorMessage = MutableStateFlow<String?>(null)
+
+    // Chat & Plan Approval State
+    val sessionActivities = MutableStateFlow<List<com.example.data.remote.dto.JulesActivityDto>>(emptyList())
+    val isSendingMessage = MutableStateFlow(false)
+    val isApprovingPlan = MutableStateFlow(false)
+    val chatInputText = MutableStateFlow("")
+
+    // Pull-to-refresh & Connectivity Banners
+    val isRefreshingSessions = MutableStateFlow(false)
+    val connectivityErrorMessage = MutableStateFlow<String?>(null)
+
+    fun dismissConnectivityError() {
+        connectivityErrorMessage.value = null
+    }
 
     init {
         val db = JulesDatabase.getInstance(application)
@@ -252,6 +267,8 @@ class JulesViewModel(application: Application) : AndroidViewModel(application) {
 
     fun loadDiffForSession(session: SessionItem) {
         selectedSessionForDiff.value = session
+        selectedDiffFileIndex.value = 0
+        loadSessionActivities(session.id)
         val prRef = session.getGitHubPrRef()
         if (prRef != null) {
             viewModelScope.launch {
@@ -277,6 +294,112 @@ class JulesViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    // ==================== INTERACTIVE ACTIVITIES & CHAT ====================
+
+    fun loadSessionActivities(sessionId: String) {
+        val key = settingsState.value.byokApiKey
+        if (key.isBlank()) {
+            sessionActivities.value = DiffDataProvider.getSampleActivities(sessionId)
+            return
+        }
+        viewModelScope.launch {
+            val result = repository.fetchSessionActivities(key, sessionId)
+            if (result.isSuccess) {
+                val list = result.getOrNull() ?: emptyList()
+                sessionActivities.value = if (list.isNotEmpty()) list else DiffDataProvider.getSampleActivities(sessionId)
+            } else {
+                if (sessionActivities.value.isEmpty()) {
+                    sessionActivities.value = DiffDataProvider.getSampleActivities(sessionId)
+                }
+            }
+        }
+    }
+
+    fun approveSessionPlan(sessionId: String) {
+        if (isApprovingPlan.value) return
+        val key = settingsState.value.byokApiKey
+        if (key.isBlank()) {
+            viewModelScope.launch {
+                isApprovingPlan.value = true
+                delay(500)
+                prApprovedMessage.value = "Plan Approved! Jules is now synthesizing code."
+                val session = allSessions.value.firstOrNull { it.id == sessionId }
+                if (session != null) {
+                    repository.updateSession(session.copy(status = SessionStatus.RUNNING, currentStep = "Synthesizing Code Patch"))
+                }
+                delay(2500)
+                prApprovedMessage.value = null
+                isApprovingPlan.value = false
+            }
+            return
+        }
+        viewModelScope.launch {
+            isApprovingPlan.value = true
+            val result = repository.approvePlan(key, sessionId)
+            if (result.isSuccess) {
+                prApprovedMessage.value = "Plan Approved! Jules is now synthesizing code."
+                loadSessionActivities(sessionId)
+                syncSessions()
+            } else {
+                prApprovedMessage.value = "Plan approval failed: ${result.exceptionOrNull()?.message}"
+            }
+            delay(2500)
+            prApprovedMessage.value = null
+            isApprovingPlan.value = false
+        }
+    }
+
+    fun sendChatMessage(sessionId: String, text: String) {
+        if (text.isBlank() || isSendingMessage.value) return
+        val key = settingsState.value.byokApiKey
+        if (key.isBlank()) {
+            val userMsg = text.trim()
+            chatInputText.value = ""
+            val current = sessionActivities.value.toMutableList()
+            current.add(
+                com.example.data.remote.dto.JulesActivityDto(
+                    id = "msg-${System.currentTimeMillis()}",
+                    createTime = "Just now",
+                    originator = "ORIGINATOR_USER",
+                    userMessaged = com.example.data.remote.dto.JulesUserMessagedDto(message = userMsg)
+                )
+            )
+            sessionActivities.value = current
+            viewModelScope.launch {
+                isSendingMessage.value = true
+                delay(800)
+                val replyList = sessionActivities.value.toMutableList()
+                replyList.add(
+                    com.example.data.remote.dto.JulesActivityDto(
+                        id = "msg-${System.currentTimeMillis()}",
+                        createTime = "Just now",
+                        originator = "ORIGINATOR_AGENT",
+                        agentMessaged = com.example.data.remote.dto.JulesAgentMessagedDto(
+                            message = "Acknowledged: \"$userMsg\". Applying directive to the current session patch."
+                        )
+                    )
+                )
+                sessionActivities.value = replyList
+                isSendingMessage.value = false
+            }
+            return
+        }
+        viewModelScope.launch {
+            isSendingMessage.value = true
+            val result = repository.sendSessionMessage(key, sessionId, text.trim())
+            if (result.isSuccess) {
+                chatInputText.value = ""
+                loadSessionActivities(sessionId)
+                syncSessions()
+            } else {
+                prApprovedMessage.value = "Failed to send message: ${result.exceptionOrNull()?.message}"
+                delay(2500)
+                prApprovedMessage.value = null
+            }
+            isSendingMessage.value = false
+        }
+    }
+
     // ==================== SOURCES & SESSIONS SYNC ====================
 
     fun refreshSources() {
@@ -295,11 +418,33 @@ class JulesViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun refreshSessions() {
+        viewModelScope.launch {
+            isRefreshingSessions.value = true
+            syncSessions()
+            delay(600)
+            isRefreshingSessions.value = false
+        }
+    }
+
     fun syncSessions() {
         viewModelScope.launch {
             val key = settingsState.value.byokApiKey
             if (key.isNotBlank()) {
                 repository.syncSessionsFromRemote(key)
+                val result = repository.syncSessionsFromRemote(key)
+                if (result.isFailure) {
+                    val msg = result.exceptionOrNull()?.message ?: "Failed to sync sessions"
+                    if (msg.contains("401") || msg.contains("403") || msg.contains("API key", ignoreCase = true)) {
+                        connectivityErrorMessage.value = "Invalid Jules API Key: Please check in Settings"
+                    } else if (msg.contains("Unable to resolve host") || msg.contains("failed to connect")) {
+                        connectivityErrorMessage.value = "Network Unavailable: Operating in offline mode"
+                    } else {
+                        connectivityErrorMessage.value = "Jules Sync: $msg"
+                    }
+                } else {
+                    connectivityErrorMessage.value = null
+                }
             }
         }
     }
