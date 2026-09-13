@@ -8,11 +8,11 @@
     <!-- Outer background glow ring -->
     <path
         android:pathData="M54,26 A28,28 0 1,1 53.9,26"
-        android:strokeColor="#15263a"
+        android:strokeColor="#27213C"
         android:strokeWidth="7"
         android:strokeLineCap="round" />
 
-    <!-- Cyan to blue gradient outer arc ring -->
+    <!-- Emerald to Jules purple gradient outer arc ring -->
     <path
         android:pathData="M34,35 A28,28 0 1,0 74,35"
         android:strokeWidth="6"
@@ -24,8 +24,8 @@
                 android:endX="74"
                 android:endY="75"
                 android:type="linear">
-                <item android:color="#4EDEA3" android:offset="0.0" />
-                <item android:color="#1A73E8" android:offset="1.0" />
+                <item android:color="#34D399" android:offset="0.0" />
+                <item android:color="#7C3AED" android:offset="1.0" />
             </gradient>
         </aapt:attr>
     </path>
@@ -33,11 +33,11 @@
     <!-- Center circular core -->
     <path
         android:pathData="M54,42 A12,12 0 1,1 53.9,42"
-        android:fillColor="#1A73E8" />
+        android:fillColor="#7C3AED" />
 
     <path
         android:pathData="M54,46 A8,8 0 1,1 53.9,46"
-        android:fillColor="#4F92F7" />
+        android:fillColor="#A855F7" />
 
     <!-- Clock hands pointing at 10 past 10 -->
     <path

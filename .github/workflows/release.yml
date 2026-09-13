@@ -1,0 +1,190 @@
+name: Build APK & Auto-Release
+
+on:
+  push:
+    branches:
+      - main
+      - master
+    paths-ignore:
+      - '.github/**'
+      - '*.md'
+      - 'docs/**'
+  workflow_dispatch:
+    inputs:
+      bump_type:
+        description: 'Semantic version bump type'
+        required: true
+        default: 'patch'
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+      custom_version:
+        description: 'Custom version name (optional, e.g. 1.2.0)'
+        required: false
+        default: ''
+        type: string
+      prerelease:
+        description: 'Mark as pre-release'
+        required: false
+        default: false
+        type: boolean
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build-and-release:
+    name: Build APK & Release
+    runs-on: ubuntu-latest
+    if: "!contains(github.event.head_commit.message, '[skip ci]')"
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'gradle'
+
+      - name: Auto Bump Version
+        id: versioning
+        run: |
+          echo "=== Reading current version ==="
+          CURRENT_CODE=$(grep -E 'versionCode\s*=\s*[0-9]+' app/build.gradle.kts | grep -oE '[0-9]+' | head -1)
+          CURRENT_NAME=$(grep -E 'versionName\s*=\s*"[^"]+"' app/build.gradle.kts | sed -E 's/.*versionName\s*=\s*"([^"]+)".*/\1/' | head -1)
+          
+          if [ -z "$CURRENT_CODE" ]; then CURRENT_CODE=1; fi
+          if [ -z "$CURRENT_NAME" ]; then CURRENT_NAME="1.0.0"; fi
+          
+          echo "Current versionCode: $CURRENT_CODE"
+          echo "Current versionName: $CURRENT_NAME"
+          
+          NEW_CODE=$((CURRENT_CODE + 1))
+          
+          # Normalize semver to X.Y.Z
+          IFS='.' read -r -a PARTS <<< "$CURRENT_NAME"
+          MAJOR="${PARTS[0]:-1}"
+          MINOR="${PARTS[1]:-0}"
+          PATCH="${PARTS[2]:-0}"
+          
+          BUMP="${{ inputs.bump_type || 'patch' }}"
+          CUSTOM="${{ inputs.custom_version }}"
+          
+          if [ -n "$CUSTOM" ]; then
+            NEW_NAME="$CUSTOM"
+          elif [ "$BUMP" = "major" ]; then
+            MAJOR=$((MAJOR + 1))
+            MINOR=0
+            PATCH=0
+            NEW_NAME="$MAJOR.$MINOR.$PATCH"
+          elif [ "$BUMP" = "minor" ]; then
+            MINOR=$((MINOR + 1))
+            PATCH=0
+            NEW_NAME="$MAJOR.$MINOR.$PATCH"
+          else
+            PATCH=$((PATCH + 1))
+            NEW_NAME="$MAJOR.$MINOR.$PATCH"
+          fi
+          
+          echo "Bumping to versionCode=$NEW_CODE, versionName=$NEW_NAME"
+          
+          # Update app/build.gradle.kts
+          sed -i -E "s/(versionCode\s*=\s*)[0-9]+/\1$NEW_CODE/" app/build.gradle.kts
+          sed -i -E "s/(versionName\s*=\s*)\"[^\"]+\"/\1\"$NEW_NAME\"/" app/build.gradle.kts
+          
+          echo "version_name=$NEW_NAME" >> $GITHUB_OUTPUT
+          echo "version_code=$NEW_CODE" >> $GITHUB_OUTPUT
+          echo "tag_name=v$NEW_NAME" >> $GITHUB_OUTPUT
+
+      - name: Configure Keystore & Signing
+        run: |
+          if [ -n "${{ secrets.KEYSTORE_BASE64 }}" ]; then
+            echo "Using custom release keystore from secrets..."
+            echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > "${GITHUB_WORKSPACE}/my-upload-key.jks"
+            echo "KEYSTORE_PATH=${GITHUB_WORKSPACE}/my-upload-key.jks" >> $GITHUB_ENV
+            echo "STORE_PASSWORD=${{ secrets.STORE_PASSWORD }}" >> $GITHUB_ENV
+            echo "KEY_PASSWORD=${{ secrets.KEY_PASSWORD }}" >> $GITHUB_ENV
+          elif [ -f "debug.keystore.base64" ]; then
+            echo "Using bundled keystore for release signing..."
+            base64 -d debug.keystore.base64 > "${GITHUB_WORKSPACE}/my-upload-key.jks"
+            echo "KEYSTORE_PATH=${GITHUB_WORKSPACE}/my-upload-key.jks" >> $GITHUB_ENV
+            echo "STORE_PASSWORD=android" >> $GITHUB_ENV
+            echo "KEY_PASSWORD=android" >> $GITHUB_ENV
+          fi
+
+          if [ ! -f "debug.keystore" ] && [ -f "debug.keystore.base64" ]; then
+            base64 -d debug.keystore.base64 > debug.keystore
+          fi
+
+      - name: Make Gradle Wrapper Executable
+        run: chmod +x ./gradlew
+
+      - name: Build Android APK
+        run: |
+          ./gradlew :app:assembleRelease :app:assembleDebug --no-daemon --stacktrace
+
+      - name: Organize Release Artifacts
+        run: |
+          mkdir -p dist-apks
+          VERSION="${{ steps.versioning.outputs.version_name }}"
+          
+          # Copy and rename Release APK
+          RELEASE_APK=$(find app/build/outputs/apk/release -name "*.apk" | head -n 1)
+          if [ -n "$RELEASE_APK" ]; then
+            cp "$RELEASE_APK" "dist-apks/jules-v${VERSION}-release.apk"
+            echo "Release APK: dist-apks/jules-v${VERSION}-release.apk"
+          fi
+          
+          # Copy and rename Debug APK
+          DEBUG_APK=$(find app/build/outputs/apk/debug -name "*.apk" | head -n 1)
+          if [ -n "$DEBUG_APK" ]; then
+            cp "$DEBUG_APK" "dist-apks/jules-v${VERSION}-debug.apk"
+            echo "Debug APK: dist-apks/jules-v${VERSION}-debug.apk"
+          fi
+          
+          ls -lh dist-apks/
+
+      - name: Commit and Push Version Bump
+        run: |
+          VERSION="${{ steps.versioning.outputs.version_name }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add app/build.gradle.kts
+          git commit -m "chore(release): bump version to v${VERSION} [skip ci]" || echo "No version changes to commit"
+          git tag -a "v${VERSION}" -m "Release v${VERSION}"
+          git push origin HEAD:${{ github.ref }} --follow-tags
+
+      - name: Create GitHub Release and Upload APK
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.versioning.outputs.tag_name }}
+          name: "Jules App v${{ steps.versioning.outputs.version_name }}"
+          body: |
+            ## Jules Autonomous Coding Agent v${{ steps.versioning.outputs.version_name }} 🚀
+            
+            ### Release Summary
+            - **Version Name**: `v${{ steps.versioning.outputs.version_name }}`
+            - **Version Code**: `${{ steps.versioning.outputs.version_code }}`
+            - **Theme**: Jules Signature Purple Palette (`jules.google.com`)
+            - **Git Commit**: `${{ github.sha }}`
+            
+            ### Included Packages
+            - 📦 **Release APK**: `jules-v${{ steps.versioning.outputs.version_name }}-release.apk`
+            - 🛠️ **Debug APK**: `jules-v${{ steps.versioning.outputs.version_name }}-debug.apk`
+          files: dist-apks/*.apk
+          draft: false
+          prerelease: ${{ inputs.prerelease || false }}
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
