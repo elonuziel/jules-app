@@ -114,4 +114,33 @@ class JulesUnitTest {
         assertEquals(18 + 42 + 4, totalAdded)
         assertEquals(6 + 0 + 1, totalDeleted)
     }
+
+    @Test
+    fun testGitHubUserDtoAndSettingsState() {
+        val userDto = com.example.data.remote.dto.GitHubUserDto(
+            login = "elonuziel",
+            name = "Elon Uziel",
+            avatarUrl = "https://avatars.githubusercontent.com/u/160357986",
+            email = "elon@example.com",
+            bio = "Android Engineer",
+            publicRepos = 12
+        )
+        assertEquals("elonuziel", userDto.login)
+        assertEquals("Elon Uziel", userDto.name)
+        assertEquals("https://avatars.githubusercontent.com/u/160357986", userDto.avatarUrl)
+
+        val settings = com.example.data.model.AgentSettingsState(
+            byokApiKey = "AIzaSyFakeKey123456",
+            githubPatToken = "ghp_1234567890abcdef",
+            gitHubUserName = userDto.name.orEmpty(),
+            gitHubUserLogin = userDto.login,
+            gitHubUserAvatarUrl = userDto.avatarUrl.orEmpty(),
+            gitHubUserEmail = userDto.email.orEmpty()
+        )
+        assertTrue(settings.isGitHubConnected)
+        assertTrue(settings.isJulesConfigured)
+        assertEquals("Elon Uziel", settings.gitHubUserName)
+        assertEquals("elonuziel", settings.gitHubUserLogin)
+        assertEquals("ghp_••••cdef", settings.maskedGitHubToken)
+    }
 }

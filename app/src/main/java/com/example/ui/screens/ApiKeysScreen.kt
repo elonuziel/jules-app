@@ -727,7 +727,7 @@ fun ApiKeysScreen(
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         AsyncImage(
-                            model = JULES_AVATAR_URL,
+                            model = if (settings.gitHubUserAvatarUrl.isNotBlank()) settings.gitHubUserAvatarUrl else JULES_AVATAR_URL,
                             contentDescription = "Avatar",
                             modifier = Modifier
                                 .size(44.dp)
@@ -736,17 +736,17 @@ fun ApiKeysScreen(
                         )
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = "Senior Infrastructure Engineer",
+                                text = if (settings.gitHubUserName.isNotBlank()) settings.gitHubUserName else if (settings.gitHubUserLogin.isNotBlank()) "@${settings.gitHubUserLogin}" else "Jules Developer",
                                 style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                             Text(
-                                text = settings.accountEmail,
+                                text = if (settings.gitHubUserEmail.isNotBlank()) settings.gitHubUserEmail else if (settings.gitHubUserLogin.isNotBlank()) "@${settings.gitHubUserLogin} (GitHub Connected)" else "GitHub: Not Configured",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = JulesOutline
                             )
                             Text(
-                                text = "Project: ${settings.gcpProjectId}",
+                                text = "Jules API: ${if (settings.isJulesConfigured) "Configured (v1alpha)" else "No Key Set"}",
                                 style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )

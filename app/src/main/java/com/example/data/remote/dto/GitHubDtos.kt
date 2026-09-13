@@ -53,3 +53,14 @@ data class GitHubMergeResponseDto(
     @Json(name = "merged") val merged: Boolean? = false,
     @Json(name = "message") val message: String? = null
 )
+
+@JsonClass(generateAdapter = true)
+data class GitHubUserDto(
+    @Json(name = "login") val login: String = "",
+    @Json(name = "name") val name: String? = null,
+    @Json(name = "avatar_url") val avatarUrl: String? = null,
+    @Json(name = "bio") val bio: String? = null,
+    @Json(name = "email") val email: String? = null,
+    @Json(name = "html_url") val htmlUrl: String? = null,
+    @Json(name = "public_repos") val publicRepos: Int? = 0
+)

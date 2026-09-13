@@ -29,6 +29,7 @@ import androidx.compose.material.icons.filled.Brightness7
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.HelpOutline
+import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Memory
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.RestartAlt
@@ -90,6 +91,16 @@ class MainActivity : ComponentActivity() {
             val showGitHubModal by viewModel.showGitHubTokenModal.collectAsState()
             var showProfileDialog by remember { mutableStateOf(false) }
 
+            val sources by viewModel.sourcesList.collectAsState()
+            val allSessions by viewModel.allSessions.collectAsState()
+            val activeSessionsCount = remember(allSessions) {
+                allSessions.count {
+                    it.status == com.example.data.model.SessionStatus.RUNNING ||
+                    it.status == com.example.data.model.SessionStatus.PATCHING ||
+                    it.status == com.example.data.model.SessionStatus.NEEDS_REVIEW
+                }
+            }
+
             val subtitle = when (currentTabIndex) {
                 0 -> "Focus Workspace"
                 1 -> "Sources & Repos"
@@ -108,9 +119,7 @@ class MainActivity : ComponentActivity() {
                     if (!hasCompleted) {
                         WelcomeScreen(
                             viewModel = viewModel,
-                            onEnterWorkspace = {
-                                // Handled by ViewModel completeWelcome
-                            }
+                            onEnterWorkspace = { viewModel.completeWelcomeScreen() }
                         )
                     } else {
                         Scaffold(
@@ -119,7 +128,10 @@ class MainActivity : ComponentActivity() {
                             topBar = {
                                 JulesTopAppBar(
                                     subtitle = subtitle,
+                                    isJulesConnected = settings.isJulesConfigured,
                                     isGitHubConnected = settings.isGitHubConnected,
+                                    gitHubLogin = settings.gitHubUserLogin,
+                                    avatarUrl = settings.gitHubUserAvatarUrl,
                                     maskedGitHubToken = settings.maskedGitHubToken,
                                     isDarkTheme = settings.isDarkTheme,
                                     onToggleTheme = {
@@ -170,8 +182,15 @@ class MainActivity : ComponentActivity() {
 
                             if (showProfileDialog) {
                                 ProfileDialog(
-                                    email = settings.accountEmail,
-                                    gcpProject = settings.gcpProjectId,
+                                    userDisplayName = settings.gitHubUserName,
+                                    userLogin = settings.gitHubUserLogin,
+                                    userEmail = settings.gitHubUserEmail,
+                                    avatarUrl = settings.gitHubUserAvatarUrl,
+                                    isJulesConfigured = settings.isJulesConfigured,
+                                    isGitHubConnected = settings.isGitHubConnected,
+                                    sourcesCount = sources.size,
+                                    activeSessionsCount = activeSessionsCount,
+                                    totalSessionsCount = allSessions.size,
                                     isDarkTheme = settings.isDarkTheme,
                                     onToggleTheme = { viewModel.setTheme(!settings.isDarkTheme) },
                                     onReopenWelcome = {
@@ -181,6 +200,10 @@ class MainActivity : ComponentActivity() {
                                     onResetCleanSlate = {
                                         showProfileDialog = false
                                         viewModel.resetToCleanSlate()
+                                    },
+                                    onConnectGitHubClick = {
+                                        showProfileDialog = false
+                                        viewModel.showGitHubTokenModal.value = true
                                     },
                                     onDismiss = { showProfileDialog = false }
                                 )
@@ -210,38 +233,58 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun ProfileDialog(
-    email: String,
-    gcpProject: String,
+    userDisplayName: String,
+    userLogin: String,
+    userEmail: String,
+    avatarUrl: String,
+    isJulesConfigured: Boolean,
+    isGitHubConnected: Boolean,
+    sourcesCount: Int,
+    activeSessionsCount: Int,
+    totalSessionsCount: Int,
     isDarkTheme: Boolean,
     onToggleTheme: () -> Unit,
     onReopenWelcome: () -> Unit,
     onResetCleanSlate: () -> Unit,
+    onConnectGitHubClick: () -> Unit = {},
     onDismiss: () -> Unit
 ) {
+    val effectiveName = when {
+        userDisplayName.isNotBlank() -> userDisplayName
+        userLogin.isNotBlank() -> "@$userLogin"
+        else -> "Jules Developer"
+    }
+    val effectiveSubtitle = when {
+        userEmail.isNotBlank() -> userEmail
+        userLogin.isNotBlank() -> "@$userLogin (GitHub Connected)"
+        isGitHubConnected -> "GitHub Connected"
+        else -> "Connect GitHub to sync profile"
+    }
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 AsyncImage(
-                    model = JULES_AVATAR_URL,
+                    model = if (avatarUrl.isNotBlank()) avatarUrl else JULES_AVATAR_URL,
                     contentDescription = "User Avatar",
                     modifier = Modifier
-                        .size(44.dp)
+                        .size(46.dp)
                         .clip(CircleShape)
                         .border(1.dp, JulesOutlineVariant, CircleShape),
                     contentScale = ContentScale.Crop
                 )
                 Column {
                     Text(
-                        text = "Engineering Lead",
-                        style = MaterialTheme.typography.headlineSmall.copy(fontSize = 16.sp),
+                        text = effectiveName,
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
-                        text = email,
+                        text = effectiveSubtitle,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -250,34 +293,88 @@ fun ProfileDialog(
         },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                // Real Dynamic Stats Card
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(JulesSurfaceContainerHigh, RoundedCornerShape(10.dp))
                         .padding(12.dp)
                 ) {
-                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        // Row 1: Jules API Status
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text("GCP Cloud Project:", style = MaterialTheme.typography.labelSmall, color = JulesOutline)
-                            Text(gcpProject, style = MaterialTheme.typography.labelSmall, color = JulesPrimary)
+                            Text("Jules API:", style = MaterialTheme.typography.labelSmall, color = JulesOutline)
+                            Text(
+                                text = if (isJulesConfigured) "Active (v1alpha)" else "Not Configured",
+                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+                                color = if (isJulesConfigured) JulesSecondary else Color(0xFFF59E0B)
+                            )
                         }
+                        // Row 2: Connected Repositories
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text("Agent Engine:", style = MaterialTheme.typography.labelSmall, color = JulesOutline)
-                            Text("Gemini 1.5 Pro", style = MaterialTheme.typography.labelSmall, color = JulesSecondary)
+                            Text("Connected Sources:", style = MaterialTheme.typography.labelSmall, color = JulesOutline)
+                            Text(
+                                text = if (sourcesCount > 0) "$sourcesCount Repositories" else "None synced",
+                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+                                color = JulesPrimary
+                            )
                         }
+                        // Row 3: Jules Tasks
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text("Quota Usage:", style = MaterialTheme.typography.labelSmall, color = JulesOutline)
-                            Text("18 / 50 daily runs", style = MaterialTheme.typography.labelSmall, color = JulesTertiary)
+                            Text("Jules Tasks:", style = MaterialTheme.typography.labelSmall, color = JulesOutline)
+                            Text(
+                                text = "$activeSessionsCount active • $totalSessionsCount total",
+                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+                                color = JulesTertiary
+                            )
                         }
+                        // Row 4: GitHub Account
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("GitHub Account:", style = MaterialTheme.typography.labelSmall, color = JulesOutline)
+                            Text(
+                                text = if (isGitHubConnected && userLogin.isNotBlank()) "@$userLogin" else if (isGitHubConnected) "Connected" else "Not Configured",
+                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+                                color = if (isGitHubConnected) JulesSecondary else Color(0xFFF59E0B)
+                            )
+                        }
+                    }
+                }
+
+                // Connect GitHub Action Button (if not connected yet)
+                if (!isGitHubConnected) {
+                    OutlinedButton(
+                        onClick = onConnectGitHubClick,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Key,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp),
+                            tint = Color(0xFFF59E0B)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "Connect GitHub PAT",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = Color(0xFFF59E0B)
+                        )
                     }
                 }
 

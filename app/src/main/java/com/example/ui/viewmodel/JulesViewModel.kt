@@ -92,6 +92,9 @@ class JulesViewModel(application: Application) : AndroidViewModel(application) {
                 refreshSources()
                 syncSessions()
             }
+            if (byokStorage.githubPat.isNotBlank()) {
+                fetchGitHubUserProfile(byokStorage.githubPat)
+            }
         }
 
         // Start background polling for active sessions
@@ -424,13 +427,51 @@ class JulesViewModel(application: Application) : AndroidViewModel(application) {
     // ==================== CLIENT-SIDE KEY MANAGEMENT ====================
 
     fun updateGitHubPat(token: String) {
-        byokStorage.githubPat = token
-        settingsState.update { it.copy(githubPatToken = token) }
+        val trimmed = token.trim()
+        byokStorage.githubPat = trimmed
+        settingsState.update { it.copy(githubPatToken = trimmed) }
+        if (trimmed.isNotBlank()) {
+            fetchGitHubUserProfile(trimmed)
+        } else {
+            clearGitHubUserProfile()
+        }
     }
 
     fun disconnectGitHubPat() {
         byokStorage.clearGitHubPat()
-        settingsState.update { it.copy(githubPatToken = "") }
+        clearGitHubUserProfile()
+    }
+
+    private fun clearGitHubUserProfile() {
+        settingsState.update {
+            it.copy(
+                githubPatToken = "",
+                gitHubUserName = "",
+                gitHubUserLogin = "",
+                gitHubUserAvatarUrl = "",
+                gitHubUserEmail = "",
+                gitHubUserBio = ""
+            )
+        }
+    }
+
+    fun fetchGitHubUserProfile(token: String) {
+        viewModelScope.launch {
+            val result = repository.fetchGitHubUser(token)
+            result.onSuccess { user ->
+                settingsState.update {
+                    it.copy(
+                        gitHubUserName = user.name.orEmpty(),
+                        gitHubUserLogin = user.login,
+                        gitHubUserAvatarUrl = user.avatarUrl.orEmpty(),
+                        gitHubUserEmail = user.email.orEmpty(),
+                        gitHubUserBio = user.bio.orEmpty()
+                    )
+                }
+            }.onFailure { e ->
+                Log.w("JulesViewModel", "Failed to fetch GitHub profile", e)
+            }
+        }
     }
 
     fun updateByokJulesKey(newKey: String) {

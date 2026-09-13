@@ -463,4 +463,17 @@ class JulesRepository(
             System.currentTimeMillis()
         }
     }
+
+    suspend fun fetchGitHubUser(patToken: String): Result<com.example.data.remote.dto.GitHubUserDto> = withContext(Dispatchers.IO) {
+        try {
+            if (patToken.isBlank()) {
+                return@withContext Result.failure(IllegalArgumentException("GitHub token is empty"))
+            }
+            val user = gitHubApi.getCurrentUser(authHeader = "Bearer ${patToken.trim()}")
+            Result.success(user)
+        } catch (e: Exception) {
+            Log.e(tag, "Failed to fetch GitHub user profile", e)
+            Result.failure(e)
+        }
+    }
 }

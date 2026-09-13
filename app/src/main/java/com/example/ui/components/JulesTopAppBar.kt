@@ -61,7 +61,10 @@ const val JULES_AVATAR_URL =
 @Composable
 fun JulesTopAppBar(
     subtitle: String,
+    isJulesConnected: Boolean = true,
     isGitHubConnected: Boolean = true,
+    gitHubLogin: String = "",
+    avatarUrl: String = "",
     maskedGitHubToken: String = "",
     isDarkTheme: Boolean = true,
     onToggleTheme: () -> Unit = {},
@@ -151,36 +154,44 @@ fun JulesTopAppBar(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                // Subtle GitHub status indicator
+                // Accurate Status Indicator (Emerald when GitHub connected, Amber to connect GitHub, Gray if no API key)
+                val statusColor = when {
+                    isGitHubConnected -> JulesSecondary
+                    isJulesConnected -> Color(0xFFF59E0B)
+                    else -> JulesOutline
+                }
+                val statusText = when {
+                    isGitHubConnected && gitHubLogin.isNotBlank() -> "@$gitHubLogin"
+                    isGitHubConnected -> "GitHub"
+                    isJulesConnected -> "Connect GitHub"
+                    else -> "No API Key"
+                }
+
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(9999.dp))
-                        .background(
-                            if (isGitHubConnected) JulesSecondary.copy(alpha = 0.12f) else JulesSurfaceContainerHigh
-                        )
+                        .background(statusColor.copy(alpha = 0.12f))
+                        .border(1.dp, statusColor.copy(alpha = 0.35f), RoundedCornerShape(9999.dp))
                         .clickable { onGitHubPillClick() }
-                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                        .padding(horizontal = 9.dp, vertical = 5.dp)
                         .testTag("github_status_pill")
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        horizontalArrangement = Arrangement.spacedBy(5.dp)
                     ) {
                         Box(
                             modifier = Modifier
                                 .size(6.dp)
-                                .background(
-                                    if (isGitHubConnected) JulesSecondary else JulesOutline,
-                                    shape = CircleShape
-                                )
+                                .background(statusColor, shape = CircleShape)
                         )
                         Text(
-                            text = if (isGitHubConnected) "GitHub" else "Offline",
+                            text = statusText,
                             style = MaterialTheme.typography.labelSmall.copy(
-                                fontWeight = FontWeight.Medium,
+                                fontWeight = FontWeight.Bold,
                                 fontSize = 11.sp
                             ),
-                            color = if (isGitHubConnected) JulesSecondary else JulesOutline
+                            color = statusColor
                         )
                     }
                 }
@@ -192,6 +203,7 @@ fun JulesTopAppBar(
                         .size(36.dp)
                         .clip(CircleShape)
                         .background(JulesSurfaceContainerHigh)
+                        .border(1.dp, JulesOutlineVariant.copy(alpha = 0.5f), CircleShape)
                         .testTag("theme_quick_toggle_button")
                 ) {
                     Icon(
@@ -207,14 +219,15 @@ fun JulesTopAppBar(
                     modifier = Modifier
                         .size(36.dp)
                         .clip(CircleShape)
+                        .border(1.dp, JulesOutlineVariant.copy(alpha = 0.5f), CircleShape)
                         .clickable { onProfileClick() }
                         .testTag("profile_avatar_button"),
                     contentAlignment = Alignment.Center
                 ) {
                     AsyncImage(
-                        model = JULES_AVATAR_URL,
+                        model = if (avatarUrl.isNotBlank()) avatarUrl else JULES_AVATAR_URL,
                         contentDescription = "Profile Picture",
-                        modifier = Modifier.size(34.dp),
+                        modifier = Modifier.size(36.dp),
                         contentScale = ContentScale.Crop
                     )
                 }

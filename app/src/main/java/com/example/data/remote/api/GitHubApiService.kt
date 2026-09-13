@@ -5,6 +5,7 @@ import com.example.data.remote.dto.GitHubMergeRequestDto
 import com.example.data.remote.dto.GitHubMergeResponseDto
 import com.example.data.remote.dto.GitHubPullRequestDto
 import com.example.data.remote.dto.GitHubReviewRequestDto
+import com.example.data.remote.dto.GitHubUserDto
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.DELETE
@@ -67,4 +68,11 @@ interface GitHubApiService {
         @Path("repo") repo: String,
         @Path(value = "branch", encoded = true) branch: String
     ): Response<Unit>
+
+    @GET("user")
+    suspend fun getCurrentUser(
+        @Header("Authorization") authHeader: String,
+        @Header("Accept") accept: String = "application/vnd.github+json",
+        @Header("X-GitHub-Api-Version") apiVersion: String = "2022-11-28"
+    ): GitHubUserDto
 }

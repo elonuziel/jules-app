@@ -114,10 +114,15 @@ data class AgentSettingsState(
     val isPinging: Boolean = false,
     val byokApiKey: String = "",
     val githubPatToken: String = "",
-    val gcpProjectId: String = "jules-agent-prod-2025",
-    val accountEmail: String = "ElonUziel@gmail.com",
-    val targetRepo: String = "google/cloud-android-sdk",
-    val targetBranch: String = "jules/fix-issue-892",
+    val gitHubUserName: String = "",
+    val gitHubUserLogin: String = "",
+    val gitHubUserAvatarUrl: String = "",
+    val gitHubUserEmail: String = "",
+    val gitHubUserBio: String = "",
+    val gcpProjectId: String = "jules.googleapis.com",
+    val accountEmail: String = "",
+    val targetRepo: String = "",
+    val targetBranch: String = "main",
     val hasCompletedWelcome: Boolean = false
 ) {
     val isGitHubConnected: Boolean
