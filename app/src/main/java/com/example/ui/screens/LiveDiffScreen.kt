@@ -351,6 +351,26 @@ fun LiveDiffScreen(
                     .horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
+                val verificationLabel = when (activeSession?.status) {
+                    SessionStatus.COMPLETED -> "Verified"
+                    SessionStatus.FAILED -> "Failed"
+                    SessionStatus.RUNNING, SessionStatus.PATCHING -> "Testing"
+                    SessionStatus.NEEDS_REVIEW -> "Review Plan"
+                    else -> "Verification"
+                }
+                val verificationIcon = when (activeSession?.status) {
+                    SessionStatus.COMPLETED -> Icons.Default.CheckCircle
+                    SessionStatus.FAILED -> Icons.Default.ErrorOutline
+                    SessionStatus.RUNNING, SessionStatus.PATCHING -> Icons.Default.Sync
+                    else -> Icons.Default.Verified
+                }
+                val verificationTint = when (activeSession?.status) {
+                    SessionStatus.COMPLETED -> JulesSecondary
+                    SessionStatus.FAILED -> JulesError
+                    SessionStatus.RUNNING, SessionStatus.PATCHING -> JulesTertiary
+                    else -> JulesOutline
+                }
+
                 ViewModePill(
                     label = if (sessionActivities.isNotEmpty()) "Step Logs (${sessionActivities.size})" else "Step Logs",
                     icon = Icons.AutoMirrored.Filled.ReceiptLong,
@@ -370,9 +390,9 @@ fun LiveDiffScreen(
                     onClick = { viewModel.diffSelectedViewMode.value = 2 }
                 )
                 ViewModePill(
-                    label = "14/14 Passed",
-                    icon = Icons.Default.CheckCircle,
-                    iconTint = JulesSecondary,
+                    label = verificationLabel,
+                    icon = verificationIcon,
+                    iconTint = verificationTint,
                     isSelected = selectedViewMode == 3,
                     onClick = { viewModel.diffSelectedViewMode.value = 3 }
                 )
@@ -1095,6 +1115,29 @@ fun LiveDiffScreen(
 
         // VIEW MODE 2: Console
         if (selectedViewMode == 2) {
+            val consoleLogs = remember(activeSession, sessionActivities, diffFiles) {
+                buildString {
+                    appendLine("$ git fetch origin && git checkout ${activeSession?.branch ?: "main"}")
+                    appendLine("Switched to branch '${activeSession?.branch ?: "main"}' on repository '${activeSession?.repo ?: "workspace"}'")
+                    appendLine("$ jules agent --session ${activeSession?.id ?: "current"}")
+                    appendLine("[jules] Status: ${activeSession?.status?.label ?: "IDLE"}")
+                    appendLine("[jules] Current step: ${activeSession?.currentStep ?: "Standby"}")
+                    if (sessionActivities.isNotEmpty()) {
+                        appendLine("\n--- SESSION ACTIVITY STREAM ---")
+                        sessionActivities.forEach { act ->
+                            val time = act.createTime?.substringAfter("T")?.take(8) ?: "00:00:00"
+                            val msg = act.agentMessaged?.message ?: act.userMessaged?.message ?: act.progressUpdated?.message ?: act.description ?: "Event"
+                            appendLine("[$time] [${act.originator ?: "AGENT"}] $msg")
+                        }
+                    }
+                    if (diffFiles.isNotEmpty()) {
+                        appendLine("\n$ git status --short")
+                        diffFiles.forEach { file ->
+                            appendLine("M  ${file.fileName} (+${file.addedCount} / -${file.deletedCount})")
+                        }
+                    }
+                }
+            }
             item {
                 Box(
                     modifier = Modifier
@@ -1118,7 +1161,7 @@ fun LiveDiffScreen(
                                 Box(modifier = Modifier.size(10.dp).background(Color(0xFF27C93F), CircleShape))
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
-                                    text = "agent@jules-runner: ~/workspace",
+                                    text = "agent@jules-runner: ~/${activeSession?.repo?.substringAfterLast("/") ?: "workspace"}",
                                     style = MaterialTheme.typography.labelSmall.copy(
                                         fontFamily = FontFamily.Monospace,
                                         fontSize = 11.sp
@@ -1134,7 +1177,7 @@ fun LiveDiffScreen(
                         }
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = "$ git checkout -b ${activeSession?.branch ?: "jules/patch-branch"}\nSwitched to branch '${activeSession?.branch ?: "jules/patch-branch"}'\n$ ./gradlew testDebugUnitTest\n> Task :app:compileDebugKotlin\n> Task :app:testDebugUnitTest\nBUILD SUCCESSFUL in 3.8s\n14 unit tests completed, 0 failed.\n$ git status --short\n${diffFiles.joinToString("\n") { "M  " + it.fileName }}",
+                            text = consoleLogs,
                             style = MaterialTheme.typography.bodySmall.copy(
                                 fontFamily = FontFamily.Monospace,
                                 fontSize = 11.sp,
@@ -1147,7 +1190,7 @@ fun LiveDiffScreen(
             }
         }
 
-        // VIEW MODE 3: 14/14 Passed Test Suite
+        // VIEW MODE 3: Verification & Test Suite
         if (selectedViewMode == 3) {
             item {
                 Box(
@@ -1163,22 +1206,61 @@ fun LiveDiffScreen(
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Icon(
-                                imageVector = Icons.Default.CheckCircle,
+                                imageVector = if (activeSession?.status == SessionStatus.FAILED) Icons.Default.ErrorOutline else Icons.Default.CheckCircle,
                                 contentDescription = null,
-                                tint = JulesSecondary,
+                                tint = if (activeSession?.status == SessionStatus.FAILED) JulesError else JulesSecondary,
                                 modifier = Modifier.size(20.dp)
                             )
                             Text(
-                                text = "Patch Verification Suite: 14/14 Passed",
+                                text = "Session Verification: ${activeSession?.status?.label ?: "Pending"}",
                                 style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                         }
                         Text(
-                            text = "All unit test assertions executed without failure. Regression prevention verified for SQLite cursor leaks under simulated OOM scenarios.",
+                            text = if (activeSession != null) {
+                                "Verification checks for task #${activeSession.id} on repository '${activeSession.repo}' (branch: ${activeSession.branch}). Current status is ${activeSession.status.label} with progress at ${activeSession.progressPercent}%. Current step: ${activeSession.currentStep}.${if (activeSession.prNumber.isNotBlank()) " Pull request: ${activeSession.prNumber}." else ""}"
+                            } else {
+                                "Select an active task from Focus Workspace to inspect real-time verification suite and test logs."
+                            },
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
+
+                        val filesWithTests = diffFiles.filter { it.testDescription.isNotBlank() }
+                        if (filesWithTests.isNotEmpty()) {
+                            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                filesWithTests.forEach { file ->
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .background(JulesSurfaceLowest, RoundedCornerShape(8.dp))
+                                            .padding(8.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = if (file.testPassed) Icons.Default.CheckCircle else Icons.Default.Description,
+                                            contentDescription = null,
+                                            tint = if (file.testPassed) JulesSecondary else JulesOutline,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                        Column {
+                                            Text(
+                                                text = file.fileName.substringAfterLast("/"),
+                                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                                color = MaterialTheme.colorScheme.onSurface
+                                            )
+                                            Text(
+                                                text = file.testDescription,
+                                                style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -1186,6 +1268,11 @@ fun LiveDiffScreen(
 
         // 5. Jules Agent Reasoner Box
         item {
+            val agentReasoning = sessionActivities.lastOrNull { it.agentMessaged != null }?.agentMessaged?.message
+                ?: sessionActivities.firstOrNull { it.planGenerated != null }?.description
+                ?: activeSession?.let { "Task #${it.id}: ${it.title}\nCurrent step: ${it.currentStep} (${it.progressPercent}% complete on branch ${it.branch})." }
+                ?: "Select an active task to view real-time reasoning and agent plan execution details."
+
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -1229,14 +1316,14 @@ fun LiveDiffScreen(
                                 )
                             }
                             Text(
-                                text = "Confidence: 99.4%",
+                                text = "Status: ${activeSession?.status?.label ?: "Idle"}",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = JulesOutline
                             )
                         }
 
                         Text(
-                            text = "Identified an unclosed cursor in the database reader loop that bypassed clean-up during intermittent CursorWindowAllocationException. Wrapped query execution within Kotlin's standard .use { } scoping block, ensuring deterministic release of native binder handles even under crash scenarios.",
+                            text = agentReasoning,
                             style = MaterialTheme.typography.bodySmall.copy(lineHeight = 18.sp),
                             color = MaterialTheme.colorScheme.onSurface
                         )
@@ -1256,14 +1343,14 @@ fun LiveDiffScreen(
                                     modifier = Modifier.size(14.dp)
                                 )
                                 Text(
-                                    text = "Zero regressions detected",
+                                    text = activeSession?.repo ?: "General",
                                     style = MaterialTheme.typography.labelSmall,
                                     color = JulesSecondary
                                 )
                             }
                             Text("•", style = MaterialTheme.typography.labelSmall, color = JulesOutlineVariant)
                             Text(
-                                text = "Target SDK 34",
+                                text = activeSession?.branch ?: "main",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -1408,8 +1495,13 @@ fun LiveDiffScreen(
             confirmButton = {
                 Button(
                     onClick = {
+                        val promptText = customRepromptText.trim()
                         viewModel.showRepromptDialog.value = false
-                        viewModel.triggerQuickDirective("Re-prompt: $customRepromptText")
+                        if (promptText.isNotBlank()) {
+                            activeSession?.id?.let { sid ->
+                                viewModel.sendChatMessage(sid, promptText)
+                            }
+                        }
                         customRepromptText = ""
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = JulesPrimaryContainer)

@@ -596,12 +596,14 @@ class JulesViewModel(application: Application) : AndroidViewModel(application) {
     val showRepromptDialog = MutableStateFlow(false)
 
     fun approvePr() {
-        val session = selectedSessionForDiff.value ?: allSessions.value.firstOrNull()
+        val session = selectedSessionForDiff.value
+            ?: allSessions.value.firstOrNull { it.status == SessionStatus.RUNNING || it.status == SessionStatus.PATCHING }
+            ?: allSessions.value.firstOrNull()
         if (session != null) {
             approvePr(session)
         } else {
             viewModelScope.launch {
-                prApprovedMessage.value = "PR #413 Created on GitHub! Signed off."
+                prApprovedMessage.value = "No active session selected to approve."
                 delay(2500)
                 prApprovedMessage.value = null
             }
@@ -609,12 +611,17 @@ class JulesViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun triggerQuickDirective(directive: String) {
-        viewModelScope.launch {
-            prApprovedMessage.value = "Executing directive: $directive..."
-            delay(1500)
-            prApprovedMessage.value = "Directive $directive completed ✓"
-            delay(1500)
-            prApprovedMessage.value = null
+        val session = selectedSessionForDiff.value
+            ?: allSessions.value.firstOrNull { it.status == SessionStatus.RUNNING || it.status == SessionStatus.PATCHING }
+            ?: allSessions.value.firstOrNull()
+        if (session != null) {
+            sendChatMessage(session.id, directive)
+        } else {
+            viewModelScope.launch {
+                prApprovedMessage.value = "No active session to dispatch directive."
+                delay(2000)
+                prApprovedMessage.value = null
+            }
         }
     }
 
