@@ -4,7 +4,9 @@ enum class SessionStatus(val label: String) {
     RUNNING("Running"),
     NEEDS_REVIEW("Review Req."),
     PATCHING("Patching"),
-    COMPLETED("Completed")
+    COMPLETED("Completed"),
+    FAILED("Failed"),
+    PAUSED("Paused")
 }
 
 enum class PullRequestStatus(val label: String) {
@@ -12,6 +14,12 @@ enum class PullRequestStatus(val label: String) {
     MERGED("Merged"),
     CLOSED("Closed")
 }
+
+data class GitHubPrRef(
+    val owner: String,
+    val repo: String,
+    val number: Int
+)
 
 enum class TaskCategory(val label: String, val apiValue: String) {
     BUG_FIX("Bug Fix", "bug"),
@@ -43,8 +51,22 @@ data class SessionItem(
     val prStatus: PullRequestStatus = PullRequestStatus.OPEN,
     val isBranchDeleted: Boolean = false,
     val prApproved: Boolean = false,
-    val targetBaseBranch: String = "main"
-)
+    val targetBaseBranch: String = "main",
+    val prUrl: String = ""
+) {
+    fun getGitHubPrRef(): GitHubPrRef? {
+        val url = prUrl.ifBlank {
+            if (repo.isNotBlank() && prNumber.isNotBlank()) {
+                val cleanNum = prNumber.removePrefix("#").trim()
+                "https://github.com/$repo/pull/$cleanNum"
+            } else null
+        } ?: return null
+
+        val match = Regex("github\\.com/([^/]+)/([^/]+)/pull/(\\d+)").find(url) ?: return null
+        val (owner, repoName, numStr) = match.destructured
+        return GitHubPrRef(owner, repoName, numStr.toIntOrNull() ?: return null)
+    }
+}
 
 data class DiffLine(
     val oldLineNumber: Int?,
