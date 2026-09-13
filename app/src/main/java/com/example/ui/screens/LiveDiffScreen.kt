@@ -129,7 +129,6 @@ fun LiveDiffScreen(
     val chatInputText by viewModel.chatInputText.collectAsState()
 
     val activeSession = selectedSession
-        ?: allSessions.firstOrNull { it.status == com.example.data.model.SessionStatus.RUNNING || it.status == com.example.data.model.SessionStatus.PATCHING }
         ?: allSessions.firstOrNull { it.status == SessionStatus.RUNNING || it.status == SessionStatus.PATCHING }
         ?: allSessions.firstOrNull()
 
@@ -146,9 +145,6 @@ fun LiveDiffScreen(
     val displayStep = activeSession?.currentStep ?: "Running Patch Verification Suite"
     val displayProgress = activeSession?.progressPercent ?: progress
 
-    val mainFile = diffFiles.firstOrNull() ?: DiffDataProvider.mainFile
-    val secondaryFile1 = diffFiles.getOrNull(1) ?: DiffDataProvider.secondaryFile1
-    val secondaryFile2 = diffFiles.getOrNull(2) ?: DiffDataProvider.secondaryFile2
     val activeDiffFile = diffFiles.getOrNull(selectedDiffFileIndex)
         ?: diffFiles.firstOrNull()
         ?: DiffDataProvider.mainFile
@@ -355,14 +351,12 @@ fun LiveDiffScreen(
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 ViewModePill(
-                    label = "Step Logs",
                     label = if (sessionActivities.isNotEmpty()) "Step Logs (${sessionActivities.size})" else "Step Logs",
                     icon = Icons.Default.ReceiptLong,
                     isSelected = selectedViewMode == 0,
                     onClick = { viewModel.diffSelectedViewMode.value = 0 }
                 )
                 ViewModePill(
-                    label = "Code Diff (3)",
                     label = "Code Diff (${diffFiles.size})",
                     icon = Icons.Default.Difference,
                     isSelected = selectedViewMode == 1,
@@ -398,7 +392,6 @@ fun LiveDiffScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        androidx.compose.material3.CircularProgressIndicator(
                         CircularProgressIndicator(
                             modifier = Modifier.size(16.dp),
                             strokeWidth = 2.dp,
@@ -414,33 +407,15 @@ fun LiveDiffScreen(
             }
         }
 
-        // 3. Main Active Diff View
-        item {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(JulesSurfaceLowest)
-            ) {
-                Column {
-                    // File Header
         // VIEW MODE 0: Step Logs / Interactive Plan Approval & Chat Timeline
         if (selectedViewMode == 0) {
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(JulesSurfaceContainerHigh)
-                            .clickable { viewModel.isMainFileExpanded.value = !isMainExpanded }
-                            .padding(horizontal = 14.dp, vertical = 10.dp),
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
                         Text(
                             text = "ACTIVITY & CHAT TIMELINE",
                             style = MaterialTheme.typography.labelSmall.copy(
@@ -464,20 +439,6 @@ fun LiveDiffScreen(
                                 .padding(24.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.Description,
-                                contentDescription = null,
-                                tint = JulesPrimary,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Text(
-                                text = mainFile.fileName,
-                                style = MaterialTheme.typography.labelSmall.copy(
-                                    fontWeight = FontWeight.Medium,
-                                    fontSize = 12.sp
-                                ),
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
                             Column(
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -497,24 +458,17 @@ fun LiveDiffScreen(
                         }
                     }
 
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
                     sessionActivities.forEach { activity ->
                         // 1. Plan Generated Card
                         activity.planGenerated?.plan?.let { plan ->
                             Box(
                                 modifier = Modifier
-                                    .background(JulesSecondary.copy(alpha = 0.12f), RoundedCornerShape(4.dp))
-                                    .padding(horizontal = 6.dp, vertical = 2.dp)
                                     .fillMaxWidth()
                                     .clip(RoundedCornerShape(12.dp))
                                     .background(JulesSurfaceContainer)
                                     .border(1.dp, JulesPrimary.copy(alpha = 0.35f), RoundedCornerShape(12.dp))
                                     .padding(14.dp)
                             ) {
-                                Text("+${mainFile.addedCount}", style = MaterialTheme.typography.labelSmall, color = JulesSecondary)
                                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                                     Row(
                                         modifier = Modifier.fillMaxWidth(),
@@ -745,13 +699,10 @@ fun LiveDiffScreen(
                         activity.progressUpdated?.let { prog ->
                             Box(
                                 modifier = Modifier
-                                    .background(JulesError.copy(alpha = 0.12f), RoundedCornerShape(4.dp))
-                                    .padding(horizontal = 6.dp, vertical = 2.dp)
                                     .fillMaxWidth()
                                     .background(JulesSurfaceLowest, RoundedCornerShape(8.dp))
                                     .padding(horizontal = 12.dp, vertical = 8.dp)
                             ) {
-                                Text("-${mainFile.deletedCount}", style = MaterialTheme.typography.labelSmall, color = JulesError)
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -777,11 +728,6 @@ fun LiveDiffScreen(
                                     }
                                 }
                             }
-                            Icon(
-                                imageVector = if (isMainExpanded) Icons.Default.UnfoldLess else Icons.Default.UnfoldMore,
-                                contentDescription = "Toggle",
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(18.dp)
                         }
 
                         // 5. Session Failed Banner
@@ -884,9 +830,6 @@ fun LiveDiffScreen(
             }
         }
 
-                    // Code Canvas
-                    AnimatedVisibility(visible = isMainExpanded) {
-                        Column(
         // VIEW MODE 1: Code Diff with Multi-File Selector Carousel
         if (selectedViewMode == 1) {
             // Horizontal Multi-File Carousel
@@ -1000,16 +943,12 @@ fun LiveDiffScreen(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(vertical = 6.dp)
-                                .horizontalScroll(rememberScrollState())
                                 .background(JulesSurfaceContainerHigh)
                                 .clickable { viewModel.isMainFileExpanded.value = !isMainExpanded }
                                 .padding(horizontal = 14.dp, vertical = 10.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            mainFile.lines.forEach { line ->
-                                DiffLineRow(line = line)
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -1110,21 +1049,6 @@ fun LiveDiffScreen(
             }
         }
 
-        // 4. Collapsible Secondary Diff Files
-        item {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                // Secondary File 1
-                SecondaryDiffCard(
-                    fileName = secondaryFile1.fileName,
-                    addedCount = secondaryFile1.addedCount,
-                    deletedCount = secondaryFile1.deletedCount,
-                    isExpanded = isSecondary1Expanded,
-                    onToggle = { viewModel.isSecondaryFile1Expanded.value = !isSecondary1Expanded },
-                    description = secondaryFile1.testDescription.ifBlank { "// Modified in pull request" },
-                    statusTag = "Patch Verified",
-                    icon = Icons.Default.CheckCircle,
-                    iconTint = JulesSecondary
-                )
         // VIEW MODE 2: Console
         if (selectedViewMode == 2) {
             item {
@@ -1179,18 +1103,6 @@ fun LiveDiffScreen(
             }
         }
 
-                // Secondary File 2
-                SecondaryDiffCard(
-                    fileName = secondaryFile2.fileName,
-                    addedCount = secondaryFile2.addedCount,
-                    deletedCount = secondaryFile2.deletedCount,
-                    isExpanded = isSecondary2Expanded,
-                    onToggle = { viewModel.isSecondaryFile2Expanded.value = !isSecondary2Expanded },
-                    description = secondaryFile2.testDescription.ifBlank { "// Modified in pull request" },
-                    statusTag = "StrictMode Tagged",
-                    icon = Icons.Default.Description,
-                    iconTint = JulesOutline
-                )
         // VIEW MODE 3: 14/14 Passed Test Suite
         if (selectedViewMode == 3) {
             item {

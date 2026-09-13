@@ -92,7 +92,6 @@ fun SessionDrawerSheet(
     onApprovePr: (SessionItem) -> Unit,
     onMergePr: (SessionItem) -> Unit,
     onDeleteBranch: (SessionItem) -> Unit,
-    onInspectDiff: (SessionItem) -> Unit = {}
     onInspectDiff: (SessionItem) -> Unit = {},
     onApprovePlan: ((SessionItem) -> Unit)? = null
 ) {

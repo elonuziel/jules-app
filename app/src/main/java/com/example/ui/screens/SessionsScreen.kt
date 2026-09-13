@@ -211,40 +211,19 @@ fun SessionsScreen(
                         )
                     }
 
-                    // Live pulse indicator
-                    val runningCount = allList.count { it.status == SessionStatus.RUNNING || it.status == SessionStatus.PATCHING }
-                    Box(
-                        modifier = Modifier
-                            .background(
-                                if (runningCount > 0) JulesSecondary.copy(alpha = 0.12f) else JulesSurfaceContainerHigh,
-                                RoundedCornerShape(20.dp)
-                            )
-                            .padding(horizontal = 10.dp, vertical = 5.dp)
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
                         IconButton(
                             onClick = { viewModel.refreshSessions() },
                             modifier = Modifier.size(34.dp)
                         ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(8.dp)
-                                    .background(if (runningCount > 0) JulesSecondary else JulesOutline, CircleShape)
                             Icon(
                                 imageVector = Icons.Default.Refresh,
                                 contentDescription = "Refresh Sessions",
                                 tint = if (isRefreshing) JulesSecondary else JulesOutline,
                                 modifier = Modifier.size(18.dp)
-                            )
-                            Text(
-                                text = if (runningCount > 0) "$runningCount Active" else "Standing By",
-                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
-                                color = if (runningCount > 0) JulesSecondary else MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
 

@@ -431,7 +431,6 @@ class JulesViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             val key = settingsState.value.byokApiKey
             if (key.isNotBlank()) {
-                repository.syncSessionsFromRemote(key)
                 val result = repository.syncSessionsFromRemote(key)
                 if (result.isFailure) {
                     val msg = result.exceptionOrNull()?.message ?: "Failed to sync sessions"
