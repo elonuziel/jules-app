@@ -433,7 +433,6 @@ fun SessionsScreen(
                                         )
                                     }
                                 }
-                                else -> {}
                             }
 
                             // Prominent Direct Action Buttons

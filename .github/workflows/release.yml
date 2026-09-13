@@ -109,28 +109,58 @@ jobs:
 
       - name: Configure Keystore & Signing
         run: |
+          echo "=== Configuring Keystores for Debug and Release ==="
+          
+          # 1. Ensure debug.keystore exists in repository root (required by debugConfig)
+          if [ ! -f "debug.keystore" ]; then
+            if [ -f "debug.keystore.base64" ]; then
+              echo "Restoring debug.keystore from bundled base64..."
+              base64 -d debug.keystore.base64 > debug.keystore
+            else
+              echo "Generating standard debug.keystore using keytool..."
+              keytool -genkeypair -v -keystore debug.keystore \
+                -storepass android -alias androiddebugkey -keypass android \
+                -keyalg RSA -keysize 2048 -validity 10000 \
+                -dname "CN=Android Debug,O=Android,C=US"
+            fi
+          fi
+          
+          # 2. Configure release keystore (required by release signingConfig)
           if [ -n "${{ secrets.KEYSTORE_BASE64 }}" ]; then
-            echo "Using custom release keystore from secrets..."
+            echo "Using custom release keystore from GitHub Secrets..."
             echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > "${GITHUB_WORKSPACE}/my-upload-key.jks"
             echo "KEYSTORE_PATH=${GITHUB_WORKSPACE}/my-upload-key.jks" >> $GITHUB_ENV
-            echo "STORE_PASSWORD=${{ secrets.STORE_PASSWORD }}" >> $GITHUB_ENV
-            echo "KEY_PASSWORD=${{ secrets.KEY_PASSWORD }}" >> $GITHUB_ENV
+            echo "STORE_PASSWORD=${{ secrets.STORE_PASSWORD || 'android' }}" >> $GITHUB_ENV
+            echo "KEY_PASSWORD=${{ secrets.KEY_PASSWORD || 'android' }}" >> $GITHUB_ENV
           elif [ -f "debug.keystore.base64" ]; then
             echo "Using bundled keystore for release signing..."
             base64 -d debug.keystore.base64 > "${GITHUB_WORKSPACE}/my-upload-key.jks"
             echo "KEYSTORE_PATH=${GITHUB_WORKSPACE}/my-upload-key.jks" >> $GITHUB_ENV
             echo "STORE_PASSWORD=android" >> $GITHUB_ENV
             echo "KEY_PASSWORD=android" >> $GITHUB_ENV
+          else
+            echo "Generating valid release upload keystore using keytool..."
+            keytool -genkeypair -v -keystore "${GITHUB_WORKSPACE}/my-upload-key.jks" \
+              -storepass android -alias upload -keypass android \
+              -keyalg RSA -keysize 2048 -validity 10000 \
+              -dname "CN=Jules Release,O=Jules,C=US"
+            echo "KEYSTORE_PATH=${GITHUB_WORKSPACE}/my-upload-key.jks" >> $GITHUB_ENV
+            echo "STORE_PASSWORD=android" >> $GITHUB_ENV
+            echo "KEY_PASSWORD=android" >> $GITHUB_ENV
           fi
-
-          if [ ! -f "debug.keystore" ] && [ -f "debug.keystore.base64" ]; then
-            base64 -d debug.keystore.base64 > debug.keystore
-          fi
+          
+          # Verify both keystores exist
+          ls -lh "${GITHUB_WORKSPACE}/debug.keystore" "${GITHUB_WORKSPACE}/my-upload-key.jks"
 
       - name: Make Gradle Wrapper Executable
         run: chmod +x ./gradlew
 
       - name: Build Android APK
+        env:
+          KEYSTORE_PATH: ${{ env.KEYSTORE_PATH }}
+          STORE_PASSWORD: ${{ env.STORE_PASSWORD }}
+          KEY_PASSWORD: ${{ env.KEY_PASSWORD }}
+          GRADLE_OPTS: -Dorg.gradle.jvmargs="-Xmx3072m -XX:MaxMetaspaceSize=768m"
         run: |
           ./gradlew :app:assembleRelease :app:assembleDebug --no-daemon --stacktrace
 
