@@ -45,8 +45,6 @@ data class SessionItem(
     val prTitle: String = "",
     val diffAdded: Int = 0,
     val diffRemoved: Int = 0,
-    val astNodesModified: Int = 0,
-    val synthesizerDetail: String = "",
     val createdAt: Long = System.currentTimeMillis(),
     val prStatus: PullRequestStatus = PullRequestStatus.OPEN,
     val isBranchDeleted: Boolean = false,
@@ -96,10 +94,10 @@ data class RepoSourceItem(
     val defaultBranch: String = "main",
     val isPrivate: Boolean = false,
     val permissions: String = "Read & Write",
-    val lastSynced: String = "Synced 2m ago",
+    val lastSynced: String = "Synced via Jules API",
     val openPrCount: Int = 0,
     val activeTasksCount: Int = 0,
-    val language: String = "Kotlin"
+    val language: String = ""
 )
 
 data class AgentSettingsState(

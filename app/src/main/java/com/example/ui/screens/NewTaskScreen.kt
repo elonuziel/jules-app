@@ -550,7 +550,7 @@ fun NewTaskScreen(
                             modifier = Modifier.size(16.dp)
                         )
                         Text(
-                            text = "Jules indexes symbol graphs dynamically upon session initiation.",
+                            text = "Jules inspects your repository context dynamically upon session initiation.",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -735,7 +735,7 @@ fun NewTaskScreen(
                                             color = MaterialTheme.colorScheme.onSurface
                                         )
                                         Text(
-                                            text = "gradlew testDebugUnitTest",
+                                            text = "Run automated verification suite",
                                             style = MaterialTheme.typography.labelSmall,
                                             color = JulesOutline
                                         )

@@ -55,8 +55,8 @@ class JulesRepository(
                     currentStep = "Executing Tests (Step 4/6)",
                     progressPercent = 68,
                     agentType = "Jules Async Agent",
-                    etaRemaining = "2m remaining",
-                    testSuiteInfo = "pytest suite: 42/48",
+                    etaRemaining = "In Progress",
+                    testSuiteInfo = "",
                     createdAt = System.currentTimeMillis() - 1000 * 60 * 4 - 1000 * 12
                 ),
                 SessionItem(
@@ -85,8 +85,6 @@ class JulesRepository(
                     prompt = "Update UserDao suspend fun getAll() to return Flow<List<User>> for continuous reactive updates.",
                     currentStep = "Synthesizing code patches",
                     progressPercent = 45,
-                    synthesizerDetail = "> Updating UserDao.kt suspend fun getAll() -> Flow<List<User>>",
-                    astNodesModified = 14,
                     createdAt = System.currentTimeMillis() - 1000 * 60 * 60
                 )
             )
@@ -445,11 +443,11 @@ class JulesRepository(
             fullName = fullName,
             defaultBranch = defaultBranch,
             isPrivate = isPrivate,
-            permissions = "Read & Write AST",
+            permissions = if (isPrivate) "Private Access" else "Public Access",
             lastSynced = "Synced via Jules API",
             openPrCount = 0,
             activeTasksCount = 0,
-            language = "Kotlin"
+            language = ""
         )
     }
 

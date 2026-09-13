@@ -659,13 +659,6 @@ class JulesViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun regenerateToken() {
-        viewModelScope.launch {
-            val randomHex = (1..8).joinToString("") { Random.nextInt(0, 16).toString(16) }
-            settingsState.update { it.copy(byokApiKey = "jul_live_${randomHex}c94b7aa029f6") }
-        }
-    }
-
     fun saveAndTestConnection() {
         viewModelScope.launch {
             testConnectionSuccess.value = "Connecting to Google Jules API..."
@@ -766,7 +759,7 @@ class JulesViewModel(application: Application) : AndroidViewModel(application) {
                     fullName = "google/cloud-android-sdk",
                     defaultBranch = "main",
                     isPrivate = false,
-                    permissions = "Read & Write AST",
+                    permissions = "Read & Write",
                     lastSynced = "Demo Mode",
                     openPrCount = 1,
                     activeTasksCount = 1,
@@ -777,7 +770,7 @@ class JulesViewModel(application: Application) : AndroidViewModel(application) {
                     fullName = "my-org/developer-portal",
                     defaultBranch = "production",
                     isPrivate = true,
-                    permissions = "Read & Write AST",
+                    permissions = "Read & Write",
                     lastSynced = "Demo Mode",
                     openPrCount = 1,
                     activeTasksCount = 0,

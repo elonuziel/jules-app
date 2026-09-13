@@ -1,5 +1,7 @@
 package com.example.ui.screens
 
+import android.content.Intent
+import android.net.Uri
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
@@ -29,6 +31,7 @@ import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.automirrored.filled.HelpOutline
+import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.LightMode
@@ -294,22 +297,30 @@ fun ApiKeysScreen(
                         }
 
                         OutlinedButton(
-                            onClick = { viewModel.regenerateToken() },
+                            onClick = {
+                                val openUrl = "https://jules.google.com/settings#api"
+                                try {
+                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(openUrl))
+                                    context.startActivity(intent)
+                                } catch (e: Exception) {
+                                    Toast.makeText(context, openUrl, Toast.LENGTH_LONG).show()
+                                }
+                            },
                             shape = RoundedCornerShape(8.dp),
                             contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-                            modifier = Modifier.testTag("regenerate_key_button")
+                            modifier = Modifier.testTag("get_api_key_button")
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Refresh,
+                                imageVector = Icons.AutoMirrored.Filled.OpenInNew,
                                 contentDescription = null,
-                                tint = JulesOutline,
+                                tint = JulesPrimary,
                                 modifier = Modifier.size(14.dp)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
-                                if (settings.isJulesConfigured) "Regenerate" else "Generate Demo Key",
+                                "Get Jules Key ↗",
                                 style = MaterialTheme.typography.labelSmall,
-                                color = JulesOutline
+                                color = JulesPrimary
                             )
                         }
                     }

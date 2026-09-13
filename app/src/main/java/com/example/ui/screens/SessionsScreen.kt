@@ -566,15 +566,17 @@ fun SessionsScreen(
                                             horizontalArrangement = Arrangement.SpaceBetween
                                         ) {
                                             Text(
-                                                text = activeSession.testSuiteInfo,
+                                                text = activeSession.testSuiteInfo.ifEmpty { activeSession.currentStep },
                                                 style = MaterialTheme.typography.labelSmall,
                                                 color = JulesOutline
                                             )
-                                            Text(
-                                                text = activeSession.etaRemaining,
-                                                style = MaterialTheme.typography.labelSmall,
-                                                color = JulesOutline
-                                            )
+                                            if (activeSession.etaRemaining.isNotBlank()) {
+                                                Text(
+                                                    text = activeSession.etaRemaining,
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    color = JulesOutline
+                                                )
+                                            }
                                         }
                                     }
                                 }
@@ -593,8 +595,20 @@ fun SessionsScreen(
                                                 style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
                                                 color = MaterialTheme.colorScheme.onSurface
                                             )
+                                            val prStatsText = buildString {
+                                                if (activeSession.diffAdded > 0 || activeSession.diffRemoved > 0) {
+                                                    append("+${activeSession.diffAdded} additions • -${activeSession.diffRemoved} deletions")
+                                                }
+                                                if (activeSession.testSuiteInfo.isNotBlank()) {
+                                                    if (isNotEmpty()) append(" • ")
+                                                    append(activeSession.testSuiteInfo)
+                                                }
+                                                if (isEmpty()) {
+                                                    append("Ready for engineer review and approval")
+                                                }
+                                            }
                                             Text(
-                                                text = "+${activeSession.diffAdded} additions • -${activeSession.diffRemoved} deletions • ${activeSession.testSuiteInfo}",
+                                                text = prStatsText,
                                                 style = MaterialTheme.typography.labelSmall,
                                                 color = JulesOutline
                                             )
@@ -1628,7 +1642,7 @@ fun SessionCard(
                             .padding(horizontal = 8.dp, vertical = 4.dp)
                     ) {
                         Text(
-                            text = session.testSuiteInfo.ifEmpty { "pytest suite: 42/48" },
+                            text = session.testSuiteInfo.ifEmpty { session.currentStep },
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -1702,7 +1716,7 @@ fun SessionCard(
                     }
                 } else if (session.status == SessionStatus.PATCHING) {
                     Text(
-                        text = "AST Graph: ${session.astNodesModified} nodes modified",
+                        text = session.currentStep.ifBlank { "Synthesizing code patch..." },
                         style = MaterialTheme.typography.labelSmall,
                         color = JulesOutline
                     )

@@ -101,7 +101,8 @@ fun SourcesScreen(
     val filteredSources = sources.filter {
         searchQuery.isBlank() ||
             it.fullName.contains(searchQuery, ignoreCase = true) ||
-            it.language.contains(searchQuery, ignoreCase = true)
+            it.defaultBranch.contains(searchQuery, ignoreCase = true) ||
+            (it.language.isNotBlank() && it.language.contains(searchQuery, ignoreCase = true))
     }
 
     val rotationTransition = rememberInfiniteTransition(label = "refresh_spin")
@@ -256,7 +257,7 @@ fun SourcesScreen(
                     onValueChange = { searchQuery = it },
                     placeholder = {
                         Text(
-                            "Filter repositories by name or language...",
+                            "Filter repositories by name or branch...",
                             style = MaterialTheme.typography.bodySmall,
                             color = JulesOutline
                         )
@@ -463,12 +464,14 @@ fun RepoSourceCard(
                         Icon(imageVector = Icons.Default.ForkRight, contentDescription = null, tint = JulesOutline, modifier = Modifier.size(14.dp))
                         Text(repoItem.defaultBranch, style = MaterialTheme.typography.labelSmall, color = JulesOutline)
                     }
-                    Box(
-                        modifier = Modifier
-                            .background(JulesSurfaceContainerHigh, RoundedCornerShape(4.dp))
-                            .padding(horizontal = 6.dp, vertical = 2.dp)
-                    ) {
-                        Text(repoItem.language, style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    if (repoItem.language.isNotBlank()) {
+                        Box(
+                            modifier = Modifier
+                                .background(JulesSurfaceContainerHigh, RoundedCornerShape(4.dp))
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                        ) {
+                            Text(repoItem.language, style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
                     }
                 }
 
