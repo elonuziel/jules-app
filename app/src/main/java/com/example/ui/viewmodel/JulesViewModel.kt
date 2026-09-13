@@ -54,43 +54,7 @@ class JulesViewModel(application: Application) : AndroidViewModel(application) {
     val activeDrawerSession = MutableStateFlow<SessionItem?>(null)
 
     // Sources View State
-    val sourcesList = MutableStateFlow(
-        listOf(
-            RepoSourceItem(
-                id = "repo-1",
-                fullName = "google/cloud-android-sdk",
-                defaultBranch = "main",
-                isPrivate = false,
-                permissions = "Read & Write AST",
-                lastSynced = "Synced 2m ago",
-                openPrCount = 1,
-                activeTasksCount = 1,
-                language = "Kotlin"
-            ),
-            RepoSourceItem(
-                id = "repo-2",
-                fullName = "my-org/developer-portal",
-                defaultBranch = "production",
-                isPrivate = true,
-                permissions = "Read & Write AST",
-                lastSynced = "Synced 18m ago",
-                openPrCount = 1,
-                activeTasksCount = 0,
-                language = "TypeScript"
-            ),
-            RepoSourceItem(
-                id = "repo-3",
-                fullName = "android-gemini-client",
-                defaultBranch = "dev",
-                isPrivate = false,
-                permissions = "Read & Write AST",
-                lastSynced = "Synced 1h ago",
-                openPrCount = 0,
-                activeTasksCount = 1,
-                language = "Kotlin"
-            )
-        )
-    )
+    val sourcesList = MutableStateFlow<List<RepoSourceItem>>(emptyList())
     val isRefreshingSources = MutableStateFlow(false)
 
     // Navigation Tab (0: Sessions, 1: Sources, 2: New Task, 3: Live Diff, 4: API Keys)
@@ -99,9 +63,7 @@ class JulesViewModel(application: Application) : AndroidViewModel(application) {
 
     // Live Diff Selection and Dynamic Files
     val selectedSessionForDiff = MutableStateFlow<SessionItem?>(null)
-    val activeDiffFiles = MutableStateFlow<List<DiffFile>>(
-        listOf(DiffDataProvider.mainFile, DiffDataProvider.secondaryFile1, DiffDataProvider.secondaryFile2)
-    )
+    val activeDiffFiles = MutableStateFlow<List<DiffFile>>(emptyList())
     val selectedDiffFileIndex = MutableStateFlow(0)
     val isLoadingDiff = MutableStateFlow(false)
     val diffErrorMessage = MutableStateFlow<String?>(null)
@@ -125,8 +87,7 @@ class JulesViewModel(application: Application) : AndroidViewModel(application) {
         repository = JulesRepository(db.sessionDao())
 
         viewModelScope.launch {
-            repository.ensureInitialData()
-            // Initial sync if key exists
+            repository.clearSampleSessions()
             if (byokStorage.julesApiKey.isNotBlank()) {
                 refreshSources()
                 syncSessions()
@@ -284,13 +245,19 @@ class JulesViewModel(application: Application) : AndroidViewModel(application) {
                     activeDiffFiles.value = result.getOrNull()!!
                 } else if (result.isFailure) {
                     diffErrorMessage.value = result.exceptionOrNull()?.message
-                    // Fall back to sample files so view remains usable
-                    activeDiffFiles.value = listOf(DiffDataProvider.mainFile, DiffDataProvider.secondaryFile1, DiffDataProvider.secondaryFile2)
+                    activeDiffFiles.value = emptyList()
+                } else {
+                    activeDiffFiles.value = emptyList()
                 }
                 isLoadingDiff.value = false
             }
         } else {
-            activeDiffFiles.value = listOf(DiffDataProvider.mainFile, DiffDataProvider.secondaryFile1, DiffDataProvider.secondaryFile2)
+            if (session.id.startsWith("JLS-") && settingsState.value.byokApiKey.isBlank()) {
+                activeDiffFiles.value = listOf(DiffDataProvider.mainFile, DiffDataProvider.secondaryFile1, DiffDataProvider.secondaryFile2)
+            } else {
+                activeDiffFiles.value = emptyList()
+                diffErrorMessage.value = "No pull request associated with session #${session.id} yet."
+            }
         }
     }
 
@@ -299,18 +266,19 @@ class JulesViewModel(application: Application) : AndroidViewModel(application) {
     fun loadSessionActivities(sessionId: String) {
         val key = settingsState.value.byokApiKey
         if (key.isBlank()) {
-            sessionActivities.value = DiffDataProvider.getSampleActivities(sessionId)
+            if (sessionId.startsWith("JLS-")) {
+                sessionActivities.value = DiffDataProvider.getSampleActivities(sessionId)
+            } else {
+                sessionActivities.value = emptyList()
+            }
             return
         }
         viewModelScope.launch {
             val result = repository.fetchSessionActivities(key, sessionId)
             if (result.isSuccess) {
-                val list = result.getOrNull() ?: emptyList()
-                sessionActivities.value = if (list.isNotEmpty()) list else DiffDataProvider.getSampleActivities(sessionId)
+                sessionActivities.value = result.getOrNull() ?: emptyList()
             } else {
-                if (sessionActivities.value.isEmpty()) {
-                    sessionActivities.value = DiffDataProvider.getSampleActivities(sessionId)
-                }
+                sessionActivities.value = emptyList()
             }
         }
     }
@@ -409,8 +377,13 @@ class JulesViewModel(application: Application) : AndroidViewModel(application) {
             val key = settingsState.value.byokApiKey
             if (key.isNotBlank()) {
                 val result = repository.fetchRemoteSources(key)
-                if (result.isSuccess && result.getOrNull()?.isNotEmpty() == true) {
-                    sourcesList.value = result.getOrNull()!!
+                if (result.isSuccess) {
+                    val fetched = result.getOrNull().orEmpty()
+                    sourcesList.value = fetched
+                    if (fetched.isNotEmpty() && (selectedRepo.value.isBlank() || fetched.none { it.fullName == selectedRepo.value })) {
+                        selectedRepo.value = fetched.first().fullName
+                        targetBranch.value = fetched.first().defaultBranch
+                    }
                 }
             }
             delay(500)
@@ -461,10 +434,16 @@ class JulesViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun updateByokJulesKey(newKey: String) {
-        byokStorage.julesApiKey = newKey
-        settingsState.update { it.copy(byokApiKey = newKey) }
-        refreshSources()
-        syncSessions()
+        val trimmed = newKey.trim()
+        byokStorage.julesApiKey = trimmed
+        settingsState.update { it.copy(byokApiKey = trimmed) }
+        viewModelScope.launch {
+            if (trimmed.isNotBlank()) {
+                repository.clearSampleSessions()
+            }
+            refreshSources()
+            syncSessions()
+        }
     }
 
     // ==================== SESSIONS SEARCH & FILTERS ====================
@@ -498,10 +477,10 @@ class JulesViewModel(application: Application) : AndroidViewModel(application) {
 
     // ==================== NEW TASK FORM STATE ====================
 
-    val selectedRepo = MutableStateFlow("google/cloud-android-sdk")
-    val targetBranch = MutableStateFlow("jules/fix-issue-892")
+    val selectedRepo = MutableStateFlow("")
+    val targetBranch = MutableStateFlow("main")
     val selectedCategory = MutableStateFlow(TaskCategory.BUG_FIX)
-    val promptText = MutableStateFlow("Investigate the intermittent ANR during background sync when network drops. Verify SQLite cursor leaks in SyncWorker.kt and add a regression test.")
+    val promptText = MutableStateFlow("")
     val isAutonomous = MutableStateFlow(true)
     val autoTestSuite = MutableStateFlow(true)
     val reasoningBudgetK = MutableStateFlow(64)
@@ -520,6 +499,20 @@ class JulesViewModel(application: Application) : AndroidViewModel(application) {
             val key = settingsState.value.byokApiKey
 
             if (key.isNotBlank()) {
+                if (selectedRepo.value.isBlank()) {
+                    dispatchSuccessMessage.value = "Please select or specify a repository source."
+                    delay(3000)
+                    dispatchSuccessMessage.value = null
+                    isDispatching.value = false
+                    return@launch
+                }
+                if (promptText.value.isBlank()) {
+                    dispatchSuccessMessage.value = "Please enter a task description prompt."
+                    delay(3000)
+                    dispatchSuccessMessage.value = null
+                    isDispatching.value = false
+                    return@launch
+                }
                 val result = repository.createRemoteSession(
                     apiKey = key,
                     prompt = promptText.value,
@@ -532,6 +525,7 @@ class JulesViewModel(application: Application) : AndroidViewModel(application) {
                 if (result.isSuccess) {
                     val session = result.getOrNull()!!
                     dispatchSuccessMessage.value = "Session #${session.id} Dispatched to Jules! ✓"
+                    promptText.value = ""
                     delay(1200)
                     dispatchSuccessMessage.value = null
                     _currentTabIndex.value = 0
@@ -541,29 +535,9 @@ class JulesViewModel(application: Application) : AndroidViewModel(application) {
                     dispatchSuccessMessage.value = null
                 }
             } else {
-                // Fallback mock task for offline evaluation
-                delay(1000)
-                val newId = "JLS-${Random.nextInt(1000, 9999)}"
-                val newTask = SessionItem(
-                    id = newId,
-                    repo = selectedRepo.value,
-                    branch = targetBranch.value,
-                    title = promptText.value.take(60) + if (promptText.value.length > 60) "..." else "",
-                    status = SessionStatus.RUNNING,
-                    category = selectedCategory.value,
-                    prompt = promptText.value,
-                    currentStep = "Cloning & Localizing Symbols",
-                    progressPercent = 15,
-                    agentType = "Jules Async Agent",
-                    etaRemaining = "3m remaining",
-                    testSuiteInfo = "pytest suite: 0/48",
-                    createdAt = System.currentTimeMillis()
-                )
-                repository.insertSession(newTask)
-                dispatchSuccessMessage.value = "Session $newId Queued (Offline Mode)"
-                delay(1200)
+                dispatchSuccessMessage.value = "Jules API key is required. Configure your key in Settings."
+                delay(3000)
                 dispatchSuccessMessage.value = null
-                _currentTabIndex.value = 0
             }
 
             isDispatching.value = false
@@ -686,8 +660,9 @@ class JulesViewModel(application: Application) : AndroidViewModel(application) {
     fun completeWelcome(julesKey: String, githubPat: String, darkTheme: Boolean) {
         byokStorage.hasCompletedWelcome = true
         byokStorage.isDarkTheme = darkTheme
-        if (julesKey.isNotBlank()) {
-            byokStorage.julesApiKey = julesKey.trim()
+        val trimmedKey = julesKey.trim()
+        if (trimmedKey.isNotBlank()) {
+            byokStorage.julesApiKey = trimmedKey
         }
         if (githubPat.isNotBlank()) {
             byokStorage.githubPat = githubPat.trim()
@@ -700,8 +675,13 @@ class JulesViewModel(application: Application) : AndroidViewModel(application) {
                 githubPatToken = byokStorage.githubPat
             )
         }
-        refreshSources()
-        syncSessions()
+        viewModelScope.launch {
+            if (trimmedKey.isNotBlank()) {
+                repository.clearSampleSessions()
+            }
+            refreshSources()
+            syncSessions()
+        }
     }
 
     fun reopenWelcomeScreen() {
@@ -718,6 +698,43 @@ class JulesViewModel(application: Application) : AndroidViewModel(application) {
                 githubPatToken = "",
                 isDarkTheme = true
             )
+        }
+        viewModelScope.launch {
+            repository.clearAllSessions()
+            sourcesList.value = emptyList()
+            activeDiffFiles.value = emptyList()
+            sessionActivities.value = emptyList()
+        }
+    }
+
+    fun loadDemoData() {
+        viewModelScope.launch {
+            repository.ensureInitialData()
+            sourcesList.value = listOf(
+                RepoSourceItem(
+                    id = "repo-demo-1",
+                    fullName = "google/cloud-android-sdk",
+                    defaultBranch = "main",
+                    isPrivate = false,
+                    permissions = "Read & Write AST",
+                    lastSynced = "Demo Mode",
+                    openPrCount = 1,
+                    activeTasksCount = 1,
+                    language = "Kotlin"
+                ),
+                RepoSourceItem(
+                    id = "repo-demo-2",
+                    fullName = "my-org/developer-portal",
+                    defaultBranch = "production",
+                    isPrivate = true,
+                    permissions = "Read & Write AST",
+                    lastSynced = "Demo Mode",
+                    openPrCount = 1,
+                    activeTasksCount = 0,
+                    language = "TypeScript"
+                )
+            )
+            activeDiffFiles.value = listOf(DiffDataProvider.mainFile, DiffDataProvider.secondaryFile1, DiffDataProvider.secondaryFile2)
         }
     }
 }

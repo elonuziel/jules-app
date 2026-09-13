@@ -1,9 +1,12 @@
 package com.example.ui.screens
 
+import android.content.Intent
+import android.net.Uri
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -200,15 +203,23 @@ fun WelcomeScreen(
                                 modifier = Modifier.size(18.dp)
                             )
                             Text(
-                                text = "Jules API Key",
+                                text = "Google Jules API Key",
                                 style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                             Spacer(modifier = Modifier.weight(1f))
+                            val julesSettingsUrl = "https://jules.google.com/settings#api"
                             Text(
-                                text = "Optional",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = JulesOutline
+                                text = "Get Key ↗",
+                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, color = JulesPrimary),
+                                modifier = Modifier.clickable {
+                                    try {
+                                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(julesSettingsUrl))
+                                        context.startActivity(intent)
+                                    } catch (e: Exception) {
+                                        Toast.makeText(context, julesSettingsUrl, Toast.LENGTH_LONG).show()
+                                    }
+                                }
                             )
                         }
 
@@ -220,7 +231,7 @@ fun WelcomeScreen(
                                 .testTag("welcome_jules_key_input"),
                             placeholder = {
                                 Text(
-                                    "Paste key or leave empty for demo",
+                                    "Paste your Jules API key...",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = JulesOutline
                                 )
@@ -254,36 +265,16 @@ fun WelcomeScreen(
                             )
                         )
 
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "Stored safely on your device",
-                                style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-
-                            TextButton(
-                                onClick = {
-                                    julesKeyInput = "jul_demo_${System.currentTimeMillis().toString().takeLast(6)}"
-                                    Toast.makeText(context, "Demo key loaded", Toast.LENGTH_SHORT).show()
-                                },
-                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
-                            ) {
-                                Text(
-                                    text = "Fill Demo Key",
-                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
-                                    color = JulesPrimary
-                                )
-                            }
-                        }
+                        Text(
+                            text = "Stored safely on your device. Connects directly to Google Jules.",
+                            style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                 }
             }
 
-            // Bottom Action: Single prominent "Get Started" button
+            // Bottom Action: Connect or Explore in Demo Mode
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -315,7 +306,7 @@ fun WelcomeScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Text(
-                            text = "Get Started",
+                            text = if (julesKeyInput.isNotBlank()) "Connect & Enter Workspace" else "Enter Workspace",
                             style = MaterialTheme.typography.bodyLarge.copy(
                                 fontWeight = FontWeight.SemiBold,
                                 fontSize = 16.sp
@@ -329,12 +320,22 @@ fun WelcomeScreen(
                     }
                 }
 
-                Text(
-                    text = "You can update keys and connected repos anytime in Settings.",
-                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
-                    color = JulesOutline,
-                    textAlign = TextAlign.Center
-                )
+                TextButton(
+                    onClick = {
+                        viewModel.loadDemoData()
+                        viewModel.completeWelcome(
+                            julesKey = "",
+                            githubPat = "",
+                            darkTheme = settings.isDarkTheme
+                        )
+                        onEnterWorkspace()
+                    }
+                ) {
+                    Text(
+                        text = "Explore in Demo Mode (Preview sample tasks)",
+                        style = MaterialTheme.typography.labelSmall.copy(color = JulesOutline)
+                    )
+                }
             }
         }
     }

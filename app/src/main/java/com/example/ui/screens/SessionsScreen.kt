@@ -38,8 +38,11 @@ import androidx.compose.material.icons.filled.DataObject
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.MergeType
 import androidx.compose.material.icons.filled.OpenInNew
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.RotateRight
@@ -123,7 +126,7 @@ fun SessionsScreen(
     val connectivityError by viewModel.connectivityErrorMessage.collectAsState()
 
     var focusedSessionId by remember { mutableStateOf<String?>(null) }
-    var isQueueExpanded by remember { mutableStateOf(false) }
+    var isQueueExpanded by remember { mutableStateOf(true) }
 
     // Identify the current session's active task to highlight
     val activeSession = (focusedSessionId?.let { id -> allList.firstOrNull { it.id == id } })
@@ -180,6 +183,120 @@ fun SessionsScreen(
                                     tint = JulesOutline,
                                     modifier = Modifier.size(16.dp)
                                 )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Connect Google Jules API Banner (shown when API key is not configured)
+            if (!settings.isJulesConfigured) {
+                item {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("connect_jules_api_banner"),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = JulesSurfaceContainer),
+                        border = BorderStroke(1.dp, JulesPrimary.copy(alpha = 0.5f))
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(36.dp)
+                                        .background(JulesPrimaryContainer, RoundedCornerShape(8.dp)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Key,
+                                        contentDescription = null,
+                                        tint = Color.White,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = "Connect Google Jules API",
+                                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Text(
+                                        text = "Enter your API key to access your real repositories and live tasks.",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+
+                            var bannerKeyInput by remember { mutableStateOf("") }
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                OutlinedTextField(
+                                    value = bannerKeyInput,
+                                    onValueChange = { bannerKeyInput = it },
+                                    placeholder = { Text("Paste Jules API key...", style = MaterialTheme.typography.bodySmall) },
+                                    modifier = Modifier.weight(1f),
+                                    shape = RoundedCornerShape(10.dp),
+                                    singleLine = true,
+                                    textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedContainerColor = JulesSurfaceLowest,
+                                        unfocusedContainerColor = JulesSurfaceLowest
+                                    )
+                                )
+                                Button(
+                                    onClick = {
+                                        if (bannerKeyInput.isNotBlank()) {
+                                            viewModel.updateByokJulesKey(bannerKeyInput)
+                                            Toast.makeText(context, "Connecting to Jules API...", Toast.LENGTH_SHORT).show()
+                                        } else {
+                                            Toast.makeText(context, "Please enter an API key", Toast.LENGTH_SHORT).show()
+                                        }
+                                    },
+                                    colors = ButtonDefaults.buttonColors(containerColor = JulesPrimaryContainer),
+                                    shape = RoundedCornerShape(10.dp)
+                                ) {
+                                    Text("Connect")
+                                }
+                            }
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                val openUrl = "https://jules.google.com/settings#api"
+                                Text(
+                                    text = "Get key from Jules settings ↗",
+                                    style = MaterialTheme.typography.labelSmall.copy(color = JulesPrimary),
+                                    modifier = Modifier.clickable {
+                                        try {
+                                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(openUrl))
+                                            context.startActivity(intent)
+                                        } catch (e: Exception) {
+                                            Toast.makeText(context, openUrl, Toast.LENGTH_LONG).show()
+                                        }
+                                    }
+                                )
+                                TextButton(
+                                    onClick = {
+                                        viewModel.loadDemoData()
+                                        Toast.makeText(context, "Loaded demo sample data", Toast.LENGTH_SHORT).show()
+                                    },
+                                    contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp)
+                                ) {
+                                    Text("Load Demo Mode", style = MaterialTheme.typography.labelSmall, color = JulesOutline)
+                                }
                             }
                         }
                     }
@@ -782,8 +899,9 @@ fun SessionsScreen(
                                     onClick = { viewModel.selectedFilter.value = "needs-review" },
                                     tag = "filter_needs_review"
                                 )
+                                val completedCount = allList.count { it.status == SessionStatus.COMPLETED }
                                 FilterPill(
-                                    label = "Completed (12)",
+                                    label = "Completed ($completedCount)",
                                     isSelected = currentFilter == "completed",
                                     dotColor = null,
                                     onClick = { viewModel.selectedFilter.value = "completed" },
@@ -802,8 +920,9 @@ fun SessionsScreen(
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(top = 20.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
+                                .padding(vertical = 24.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Box(
                                 modifier = Modifier
@@ -812,22 +931,35 @@ fun SessionsScreen(
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.SearchOff,
+                                    imageVector = if (allList.isEmpty()) Icons.Default.SmartToy else Icons.Default.SearchOff,
                                     contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                    tint = JulesPrimary,
+                                    modifier = Modifier.size(24.dp)
                                 )
                             }
-                            Spacer(modifier = Modifier.height(12.dp))
                             Text(
-                                text = "No matching sessions",
-                                style = MaterialTheme.typography.headlineSmall,
+                                text = if (allList.isEmpty()) "No Sessions Found" else "No matching sessions",
+                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                             Text(
-                                text = "Try clearing filters or search queries",
+                                text = if (allList.isEmpty())
+                                    "Dispatch your first coding task to Google Jules"
+                                else
+                                    "Try clearing filters or search queries",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
+                            if (allList.isEmpty()) {
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Button(
+                                    onClick = onNavigateToNewTask,
+                                    colors = ButtonDefaults.buttonColors(containerColor = JulesPrimaryContainer),
+                                    shape = RoundedCornerShape(8.dp)
+                                ) {
+                                    Text("Create New Task")
+                                }
+                            }
                         }
                     }
                 } else {

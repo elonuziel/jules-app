@@ -18,15 +18,16 @@ data class JulesSourceDto(
 
 @JsonClass(generateAdapter = true)
 data class JulesGitHubRepoDto(
-    @Json(name = "owner") val owner: String,
-    @Json(name = "repo") val repo: String,
-    @Json(name = "defaultBranch") val defaultBranch: String = "main",
+    @Json(name = "owner") val owner: String? = null,
+    @Json(name = "repo") val repo: String? = null,
+    @Json(name = "isPrivate") val isPrivate: Boolean? = null,
+    @Json(name = "defaultBranch") val defaultBranch: JulesGitHubBranchDto? = null,
     @Json(name = "branches") val branches: List<JulesGitHubBranchDto> = emptyList()
 )
 
 @JsonClass(generateAdapter = true)
 data class JulesGitHubBranchDto(
-    @Json(name = "displayName") val displayName: String
+    @Json(name = "displayName") val displayName: String = "main"
 )
 
 @JsonClass(generateAdapter = true)
@@ -124,19 +125,32 @@ data class JulesPlanStepDto(
 
 @JsonClass(generateAdapter = true)
 data class JulesAgentMessagedDto(
+    @Json(name = "agentMessage") val agentMessage: String? = null,
     @Json(name = "message") val message: String? = null
-)
+) {
+    val effectiveMessage: String?
+        get() = agentMessage ?: message
+}
 
 @JsonClass(generateAdapter = true)
 data class JulesUserMessagedDto(
+    @Json(name = "userMessage") val userMessage: String? = null,
     @Json(name = "message") val message: String? = null
-)
+) {
+    val effectiveMessage: String?
+        get() = userMessage ?: message
+}
 
 @JsonClass(generateAdapter = true)
 data class JulesProgressUpdatedDto(
     @Json(name = "progressPercent") val progressPercent: Int? = null,
+    @Json(name = "title") val title: String? = null,
+    @Json(name = "description") val description: String? = null,
     @Json(name = "message") val message: String? = null
-)
+) {
+    val effectiveMessage: String?
+        get() = description ?: message ?: title
+}
 
 @JsonClass(generateAdapter = true)
 data class JulesSessionFailedDto(

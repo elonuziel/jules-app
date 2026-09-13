@@ -27,6 +27,12 @@ interface JulesSessionDao {
     @Query("DELETE FROM jules_sessions WHERE id = :sessionId")
     suspend fun deleteSessionById(sessionId: String)
 
+    @Query("DELETE FROM jules_sessions WHERE id IN ('JLS-8492', 'JLS-7914', 'JLS-6230') OR id LIKE 'JLS-%'")
+    suspend fun deleteSampleSessions()
+
+    @Query("DELETE FROM jules_sessions")
+    suspend fun deleteAllSessions()
+
     @Query("SELECT COUNT(*) FROM jules_sessions")
     suspend fun getSessionCount(): Int
 }

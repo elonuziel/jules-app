@@ -102,6 +102,14 @@ class JulesRepository(
         dao.updateSession(JulesSessionEntity.fromSessionItem(session))
     }
 
+    suspend fun clearSampleSessions() {
+        dao.deleteSampleSessions()
+    }
+
+    suspend fun clearAllSessions() {
+        dao.deleteAllSessions()
+    }
+
     suspend fun updateSessionStatus(sessionId: String, newStatus: SessionStatus) {
         val existing = dao.getSessionById(sessionId) ?: return
         dao.updateSession(existing.copy(status = newStatus.name))
@@ -128,6 +136,9 @@ class JulesRepository(
             if (apiKey.isBlank()) {
                 return@withContext Result.failure(IllegalArgumentException("Jules API key is missing"))
             }
+            // Remove mock sample data as real remote sync is taking place
+            dao.deleteSampleSessions()
+
             val response = julesApi.getSessions(apiKey.trim(), pageSize = 30)
             val remoteItems = response.sessions.map { dto ->
                 mapSessionDtoToSessionItem(dto)
@@ -139,8 +150,8 @@ class JulesRepository(
                     try {
                         val activitiesResp = julesApi.getSessionActivities(apiKey.trim(), sessionId = session.id, pageSize = 20)
                         val latestActivity = activitiesResp.activities.lastOrNull()
-                        val stepDesc = latestActivity?.progressUpdated?.message
-                            ?: latestActivity?.agentMessaged?.message
+                        val stepDesc = latestActivity?.progressUpdated?.effectiveMessage
+                            ?: latestActivity?.agentMessaged?.effectiveMessage
                             ?: latestActivity?.description
                             ?: session.currentStep
                         session.copy(currentStep = stepDesc)
@@ -419,18 +430,19 @@ class JulesRepository(
     private fun mapSourceDtoToRepoSourceItem(dto: JulesSourceDto): RepoSourceItem {
         val rawId = dto.id ?: dto.name.substringAfterLast("/")
         val gh = dto.githubRepo
-        val fullName = if (gh != null) {
+        val fullName = if (gh != null && !gh.owner.isNullOrBlank() && !gh.repo.isNullOrBlank()) {
             "${gh.owner}/${gh.repo}"
         } else {
             dto.name.removePrefix("sources/github/").removePrefix("sources/")
         }
-        val defaultBranch = gh?.defaultBranch ?: "main"
+        val defaultBranch = gh?.defaultBranch?.displayName ?: "main"
+        val isPrivate = gh?.isPrivate ?: false
 
         return RepoSourceItem(
             id = rawId,
             fullName = fullName,
             defaultBranch = defaultBranch,
-            isPrivate = false,
+            isPrivate = isPrivate,
             permissions = "Read & Write AST",
             lastSynced = "Synced via Jules API",
             openPrCount = 0,
@@ -442,8 +454,11 @@ class JulesRepository(
     private fun parseIsoTimestamp(timestampStr: String?): Long {
         if (timestampStr.isNullOrBlank()) return System.currentTimeMillis()
         return try {
-            val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US)
-            sdf.parse(timestampStr.substringBefore("."))?.time ?: System.currentTimeMillis()
+            val clean = timestampStr.substringBefore(".").removeSuffix("Z")
+            val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US).apply {
+                timeZone = java.util.TimeZone.getTimeZone("UTC")
+            }
+            sdf.parse(clean)?.time ?: System.currentTimeMillis()
         } catch (e: Exception) {
             System.currentTimeMillis()
         }

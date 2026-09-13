@@ -32,6 +32,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Assignment
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Difference
 import androidx.compose.material.icons.filled.ErrorOutline
@@ -138,16 +139,15 @@ fun LiveDiffScreen(
         }
     }
 
-    val displayId = activeSession?.let { "#${it.id}" } ?: "#JLS-8492"
-    val displayTitle = activeSession?.title ?: "Fix SQLite Cursor Leak in SyncWorker"
-    val displayRepo = activeSession?.repo ?: "google/cloud-android-sdk"
-    val displayBranch = activeSession?.branch ?: "jules/cursor-leak-fix"
-    val displayStep = activeSession?.currentStep ?: "Running Patch Verification Suite"
-    val displayProgress = activeSession?.progressPercent ?: progress
+    val displayId = activeSession?.let { "#${it.id}" } ?: "No Active Task"
+    val displayTitle = activeSession?.title ?: "Select a task from Focus Workspace to inspect diff and logs"
+    val displayRepo = activeSession?.repo ?: "—"
+    val displayBranch = activeSession?.branch ?: "—"
+    val displayStep = activeSession?.currentStep ?: "Idle"
+    val displayProgress = activeSession?.progressPercent ?: 0
 
     val activeDiffFile = diffFiles.getOrNull(selectedDiffFileIndex)
         ?: diffFiles.firstOrNull()
-        ?: DiffDataProvider.mainFile
 
     var customRepromptText by remember { mutableStateOf("") }
 
@@ -832,9 +832,51 @@ fun LiveDiffScreen(
 
         // VIEW MODE 1: Code Diff with Multi-File Selector Carousel
         if (selectedViewMode == 1) {
-            // Horizontal Multi-File Carousel
-            item {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (diffFiles.isEmpty() || activeDiffFile == null) {
+                item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(14.dp),
+                        colors = CardDefaults.cardColors(containerColor = JulesSurfaceContainer),
+                        border = BorderStroke(1.dp, JulesOutlineVariant)
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(24.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(48.dp)
+                                    .background(JulesSurfaceContainerHigh, CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Code,
+                                    contentDescription = null,
+                                    tint = JulesOutline,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+                            Text(
+                                text = "No Code Diffs Available",
+                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = diffError ?: "Once Jules generates code changes and creates a GitHub pull request, modified files and unified git diffs will appear here.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+            } else {
+                // Horizontal Multi-File Carousel
+                item {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -1046,6 +1088,7 @@ fun LiveDiffScreen(
                         }
                     }
                 }
+            }
             }
         }
 

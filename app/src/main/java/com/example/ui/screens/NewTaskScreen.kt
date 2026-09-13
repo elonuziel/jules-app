@@ -104,18 +104,9 @@ fun NewTaskScreen(
 
     val sources by viewModel.sourcesList.collectAsState()
     var repoDropdownExpanded by remember { mutableStateOf(false) }
+    var showManualRepoInput by remember { mutableStateOf(false) }
     var showAdvancedOptions by remember { mutableStateOf(false) }
-    val repoOptions = if (sources.isNotEmpty()) {
-        sources.map { it.fullName }
-    } else {
-        listOf(
-            "google/cloud-android-sdk",
-            "google/jules-runtime-engine",
-            "google/mobile-agent-ui",
-            "corp/cloud-orchestration",
-            "android-gemini-client"
-        )
-    }
+    val repoOptions = sources.map { it.fullName }
 
     val advancedChevronRotation by animateFloatAsState(
         targetValue = if (showAdvancedOptions) 180f else 0f,
@@ -199,80 +190,121 @@ fun NewTaskScreen(
                         }
                     }
 
-                    // Repository Dropdown Selector
-                    Box {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .background(JulesSurfaceContainerHigh, RoundedCornerShape(10.dp))
-                                .clickable { repoDropdownExpanded = true }
-                                .padding(12.dp)
-                                .testTag("repo_selector"),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
+                    // Repository Selector (Dropdown or Manual Input)
+                    if (repoOptions.isNotEmpty() && !showManualRepoInput) {
+                        Box {
                             Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(JulesSurfaceContainerHigh, RoundedCornerShape(10.dp))
+                                    .clickable { repoDropdownExpanded = true }
+                                    .padding(12.dp)
+                                    .testTag("repo_selector"),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(32.dp)
-                                        .background(JulesSurfaceLowest, CircleShape),
-                                    contentAlignment = Alignment.Center
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                                 ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Source,
-                                        contentDescription = null,
-                                        tint = JulesPrimary,
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                }
-                                Column {
-                                    Text(
-                                        text = selectedRepo,
-                                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    )
-                                    Text(
-                                        text = "default: main",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = JulesOutline
-                                    )
-                                }
-                            }
-                            Icon(
-                                imageVector = Icons.Default.ExpandMore,
-                                contentDescription = "Expand",
-                                tint = JulesOutlineVariant
-                            )
-                        }
-
-                        DropdownMenu(
-                            expanded = repoDropdownExpanded,
-                            onDismissRequest = { repoDropdownExpanded = false },
-                            modifier = Modifier.background(JulesSurfaceContainerHighest)
-                        ) {
-                            repoOptions.forEach { repo ->
-                                DropdownMenuItem(
-                                    text = {
-                                        Text(
-                                            text = repo,
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = if (repo == selectedRepo) JulesPrimary else MaterialTheme.colorScheme.onSurface
+                                    Box(
+                                        modifier = Modifier
+                                            .size(32.dp)
+                                            .background(JulesSurfaceLowest, CircleShape),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Source,
+                                            contentDescription = null,
+                                            tint = JulesPrimary,
+                                            modifier = Modifier.size(18.dp)
                                         )
-                                    },
-                                    onClick = {
-                                        viewModel.selectedRepo.value = repo
-                                        val matched = sources.firstOrNull { it.fullName == repo }
-                                        if (matched != null) {
-                                            viewModel.targetBranch.value = matched.defaultBranch
-                                        }
-                                        repoDropdownExpanded = false
                                     }
+                                    Column {
+                                        Text(
+                                            text = if (selectedRepo.isNotBlank()) selectedRepo else "Select repository...",
+                                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+                                            color = if (selectedRepo.isNotBlank()) MaterialTheme.colorScheme.onSurface else JulesOutline
+                                        )
+                                        Text(
+                                            text = "branch: $targetBranch",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = JulesOutline
+                                        )
+                                    }
+                                }
+                                Icon(
+                                    imageVector = Icons.Default.ExpandMore,
+                                    contentDescription = "Expand",
+                                    tint = JulesOutlineVariant
                                 )
                             }
+
+                            DropdownMenu(
+                                expanded = repoDropdownExpanded,
+                                onDismissRequest = { repoDropdownExpanded = false },
+                                modifier = Modifier.background(JulesSurfaceContainerHighest)
+                            ) {
+                                repoOptions.forEach { repo ->
+                                    DropdownMenuItem(
+                                        text = {
+                                            Text(
+                                                text = repo,
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = if (repo == selectedRepo) JulesPrimary else MaterialTheme.colorScheme.onSurface
+                                            )
+                                        },
+                                        onClick = {
+                                            viewModel.selectedRepo.value = repo
+                                            val matched = sources.firstOrNull { it.fullName == repo }
+                                            if (matched != null) {
+                                                viewModel.targetBranch.value = matched.defaultBranch
+                                            }
+                                            repoDropdownExpanded = false
+                                        }
+                                    )
+                                }
+                            }
                         }
+                    } else {
+                        OutlinedTextField(
+                            value = selectedRepo,
+                            onValueChange = { viewModel.selectedRepo.value = it },
+                            placeholder = {
+                                Text(
+                                    "owner/repo e.g. organization/repository",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = JulesOutline
+                                )
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("repo_input_manual"),
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Default.Source,
+                                    contentDescription = null,
+                                    tint = JulesPrimary,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            },
+                            shape = RoundedCornerShape(10.dp),
+                            singleLine = true,
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedContainerColor = JulesSurfaceContainerHighest,
+                                unfocusedContainerColor = JulesSurfaceContainerHigh,
+                                focusedBorderColor = JulesPrimary.copy(alpha = 0.4f),
+                                unfocusedBorderColor = Color.Transparent
+                            )
+                        )
+                    }
+
+                    if (sources.isNotEmpty()) {
+                        Text(
+                            text = if (showManualRepoInput) "← Choose from connected repositories" else "Or enter custom repository manually",
+                            style = MaterialTheme.typography.labelSmall.copy(color = JulesPrimary),
+                            modifier = Modifier.clickable { showManualRepoInput = !showManualRepoInput }
+                        )
                     }
 
                     // Target Branch field

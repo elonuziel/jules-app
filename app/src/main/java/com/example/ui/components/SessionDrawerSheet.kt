@@ -161,36 +161,73 @@ fun SessionDrawerSheet(
                 color = MaterialTheme.colorScheme.onSurface
             )
 
-            // ENHANCED PULL REQUEST CARD
-            EnhancedPullRequestCard(
-                session = session,
-                onApproveClick = {
-                    onApprovePr(session)
-                    Toast.makeText(context, "Pull Request #${session.prNumber.ifEmpty { "412" }} approved by reviewer ✓", Toast.LENGTH_SHORT).show()
-                },
-                onMergeClick = {
-                    showMergeConfirmation = true
-                },
-                onDeleteBranchClick = {
-                    onDeleteBranch(session)
-                    Toast.makeText(context, "Remote branch ${session.branch} deleted successfully.", Toast.LENGTH_SHORT).show()
-                },
-                onCopyBranch = {
-                    clipboardManager.setText(AnnotatedString(session.branch))
-                    Toast.makeText(context, "Branch ${session.branch} copied!", Toast.LENGTH_SHORT).show()
-                },
-                onOpenInGitHub = {
-                    val prClean = session.prNumber.replace("#", "").ifEmpty { "412" }
-                    val githubUrl = "https://github.com/${session.repo}/pull/$prClean"
-                    try {
-                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(githubUrl))
-                        context.startActivity(intent)
-                    } catch (e: Exception) {
-                        Toast.makeText(context, "Open $githubUrl", Toast.LENGTH_LONG).show()
+            // ENHANCED PULL REQUEST CARD (or pending state if not created yet)
+            if (session.prNumber.isNotBlank() || session.prUrl.isNotBlank()) {
+                EnhancedPullRequestCard(
+                    session = session,
+                    onApproveClick = {
+                        onApprovePr(session)
+                        Toast.makeText(context, "Pull Request ${session.prNumber} approved by reviewer ✓", Toast.LENGTH_SHORT).show()
+                    },
+                    onMergeClick = {
+                        showMergeConfirmation = true
+                    },
+                    onDeleteBranchClick = {
+                        onDeleteBranch(session)
+                        Toast.makeText(context, "Remote branch ${session.branch} deleted successfully.", Toast.LENGTH_SHORT).show()
+                    },
+                    onCopyBranch = {
+                        clipboardManager.setText(AnnotatedString(session.branch))
+                        Toast.makeText(context, "Branch ${session.branch} copied!", Toast.LENGTH_SHORT).show()
+                    },
+                    onOpenInGitHub = {
+                        val prClean = session.prNumber.replace("#", "")
+                        val githubUrl = session.prUrl.ifBlank { "https://github.com/${session.repo}/pull/$prClean" }
+                        try {
+                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(githubUrl))
+                            context.startActivity(intent)
+                        } catch (e: Exception) {
+                            Toast.makeText(context, "Open $githubUrl", Toast.LENGTH_LONG).show()
+                        }
+                    },
+                    onApprovePlan = onApprovePlan
+                )
+            } else {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = CardDefaults.cardColors(containerColor = JulesSurfaceContainerHigh),
+                    border = BorderStroke(1.dp, JulesOutlineVariant)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Icon(imageVector = Icons.Default.CallMerge, contentDescription = null, tint = JulesOutline, modifier = Modifier.size(16.dp))
+                            Text("No Pull Request Opened Yet", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface)
+                        }
+                        Text(
+                            text = "Jules is executing on branch '${session.branch}'. Once code patches are synthesized, a GitHub pull request will appear here.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        if (session.status == SessionStatus.NEEDS_REVIEW && onApprovePlan != null) {
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Button(
+                                onClick = { onApprovePlan.invoke(session) },
+                                modifier = Modifier.fillMaxWidth().height(42.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = JulesPrimaryContainer),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Icon(imageVector = Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Approve Execution Plan & Proceed", style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold))
+                            }
+                        }
                     }
-                },
-                onApprovePlan = onApprovePlan
-            )
+                }
+            }
 
             // Live Diff Inspection Shortcut
             Button(
@@ -218,7 +255,7 @@ fun SessionDrawerSheet(
 
     // Merge Confirmation Modal
     if (showMergeConfirmation) {
-        val prClean = session.prNumber.ifEmpty { "#412" }
+        val prClean = session.prNumber.ifEmpty { if (session.prUrl.isNotBlank()) "#${session.prUrl.substringAfterLast("/")}" else "PR" }
         AlertDialog(
             onDismissRequest = { showMergeConfirmation = false },
             modifier = Modifier.testTag("squash_merge_confirm_modal"),
@@ -296,7 +333,7 @@ fun EnhancedPullRequestCard(
     onOpenInGitHub: () -> Unit,
     onApprovePlan: ((SessionItem) -> Unit)? = null
 ) {
-    val prNumber = session.prNumber.ifEmpty { "#412" }
+    val prNumber = session.prNumber.ifEmpty { if (session.prUrl.isNotBlank()) "#${session.prUrl.substringAfterLast("/")}" else "PR" }
 
     Box(
         modifier = Modifier
