@@ -517,6 +517,50 @@ fun SessionsScreen(
                                         )
                                     }
                                 }
+                                SessionStatus.FAILED -> {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .background(JulesError.copy(alpha = 0.12f), RoundedCornerShape(8.dp))
+                                            .padding(10.dp),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.ErrorOutline,
+                                            contentDescription = null,
+                                            tint = JulesError,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                        Text(
+                                            text = "Task execution failed. Inspect logs for details.",
+                                            style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
+                                            color = JulesError
+                                        )
+                                    }
+                                }
+                                SessionStatus.PAUSED -> {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .background(JulesSurfaceContainerHighest, RoundedCornerShape(8.dp))
+                                            .padding(10.dp),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Schedule,
+                                            contentDescription = null,
+                                            tint = JulesOutline,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                        Text(
+                                            text = "Task execution paused.",
+                                            style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
                             }
 
                             // Prominent Direct Action Buttons
@@ -1268,6 +1312,24 @@ fun SessionCard(
                             Text("Completed", style = MaterialTheme.typography.labelSmall, color = JulesOutline)
                         }
                     }
+                    SessionStatus.FAILED -> {
+                        Box(
+                            modifier = Modifier
+                                .background(JulesError.copy(alpha = 0.15f), RoundedCornerShape(4.dp))
+                                .padding(horizontal = 8.dp, vertical = 3.dp)
+                        ) {
+                            Text("Failed", style = MaterialTheme.typography.labelSmall, color = JulesError)
+                        }
+                    }
+                    SessionStatus.PAUSED -> {
+                        Box(
+                            modifier = Modifier
+                                .background(JulesSurfaceContainerHighest, RoundedCornerShape(4.dp))
+                                .padding(horizontal = 8.dp, vertical = 3.dp)
+                        ) {
+                            Text("Paused", style = MaterialTheme.typography.labelSmall, color = JulesOutline)
+                        }
+                    }
                 }
             }
 
@@ -1378,6 +1440,42 @@ fun SessionCard(
                         )
                         Text(
                             text = "Completed • Verified by tests",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+                SessionStatus.FAILED -> {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.ErrorOutline,
+                            contentDescription = null,
+                            tint = JulesError,
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Text(
+                            text = "Failed • Check error log",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = JulesError
+                        )
+                    }
+                }
+                SessionStatus.PAUSED -> {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Schedule,
+                            contentDescription = null,
+                            tint = JulesOutline,
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Text(
+                            text = "Paused",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )

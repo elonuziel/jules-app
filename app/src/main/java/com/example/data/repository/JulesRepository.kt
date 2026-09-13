@@ -135,8 +135,8 @@ class JulesRepository(
                     try {
                         val activitiesResp = julesApi.getSessionActivities(apiKey.trim(), sessionId = session.id, pageSize = 20)
                         val latestActivity = activitiesResp.activities.lastOrNull()
-                        val stepDesc = latestActivity?.progressUpdated?.description
-                            ?: latestActivity?.agentMessaged?.agentMessage
+                        val stepDesc = latestActivity?.progressUpdated?.message
+                            ?: latestActivity?.agentMessaged?.message
                             ?: latestActivity?.description
                             ?: session.currentStep
                         session.copy(currentStep = stepDesc)
