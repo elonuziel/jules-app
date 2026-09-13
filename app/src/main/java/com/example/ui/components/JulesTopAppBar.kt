@@ -44,6 +44,9 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.Image
+import androidx.compose.ui.res.painterResource
+import com.example.R
 import coil.compose.AsyncImage
 import com.example.ui.theme.JulesOutline
 import com.example.ui.theme.JulesOutlineVariant
@@ -52,11 +55,6 @@ import com.example.ui.theme.JulesSecondary
 import com.example.ui.theme.JulesSurfaceContainerHigh
 import com.example.ui.theme.JulesSurfaceLowest
 
-const val JULES_LOGO_URL =
-    "https://lh3.googleusercontent.com/aida/AEtjO1UCvOeFzEhEhJuEPZUVrJb1mHlprVss2t7KtEF6vTgiNqFjBWFxVvq4oWIZl9FNRCzn6NPul3qaw1nh5biILxH7I1q_SRRwdBuqyF27Crf9Mnd1meCBc6DHS3TtKzJOWfmtZufjsfusIyAw8FzOAsHAFtl2QHb-uUBAdRFzD7RIGfKWHjGl7AtauPAHg38zBeVIdoUJDzOm5mxeJNgmN5hQT-Ak61k7rco_3N86ZyC3-1ki8-tG91EBH_FD"
-
-const val JULES_AVATAR_URL =
-    "https://lh3.googleusercontent.com/aida-public/AB6AXuDuf9xNKkwqFmeN92FKsQwh4Vo6QWYFLvr8VNozdHgFOQYXl3xQAaBCzO6g4jPMvgaLQdNDnTE5nTWsVB06seNBQgB3mX0GydwW5UKG3n5MFXrIYc1sk6qa2kxpudzuE6GegoQk7T_ni3NuR9HVc6QVHe32DhyO1Etq88qqjf9o4UDSd5cHo1QRWMWNQd-yYnLAkUxQiyPJmMgOCQxhUtHD71pZ3NxutETwTR9hI87shlGzK0dcDzNu3Q"
 
 @Composable
 fun JulesTopAppBar(
@@ -101,8 +99,8 @@ fun JulesTopAppBar(
                     .weight(1f),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                AsyncImage(
-                    model = JULES_LOGO_URL,
+                Image(
+                    painter = painterResource(id = R.drawable.jules_mascot),
                     contentDescription = "Google Jules Logo",
                     modifier = Modifier
                         .size(32.dp)
@@ -224,12 +222,21 @@ fun JulesTopAppBar(
                         .testTag("profile_avatar_button"),
                     contentAlignment = Alignment.Center
                 ) {
-                    AsyncImage(
-                        model = if (avatarUrl.isNotBlank()) avatarUrl else JULES_AVATAR_URL,
-                        contentDescription = "Profile Picture",
-                        modifier = Modifier.size(36.dp),
-                        contentScale = ContentScale.Crop
-                    )
+                    if (avatarUrl.isNotBlank()) {
+                        AsyncImage(
+                            model = avatarUrl,
+                            contentDescription = "Profile Picture",
+                            modifier = Modifier.size(36.dp),
+                            contentScale = ContentScale.Crop
+                        )
+                    } else {
+                        Image(
+                            painter = painterResource(id = R.drawable.jules_mascot),
+                            contentDescription = "Profile Picture",
+                            modifier = Modifier.size(36.dp),
+                            contentScale = ContentScale.Crop
+                        )
+                    }
                 }
             }
         }

@@ -63,11 +63,11 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil.compose.AsyncImage
-import com.example.ui.components.JULES_LOGO_URL
+import androidx.compose.foundation.Image
+import androidx.compose.ui.res.painterResource
+import com.example.R
 import com.example.ui.theme.JulesOutline
 import com.example.ui.theme.JulesOutlineVariant
 import com.example.ui.theme.JulesPrimary
@@ -121,11 +121,11 @@ fun WelcomeScreen(
                         .border(1.dp, JulesOutlineVariant.copy(alpha = 0.5f), CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
-                    AsyncImage(
-                        model = JULES_LOGO_URL,
+                    Image(
+                        painter = painterResource(id = R.drawable.jules_mascot),
                         contentDescription = "Jules Logo",
                         modifier = Modifier
-                            .size(54.dp)
+                            .size(56.dp)
                             .clip(RoundedCornerShape(12.dp)),
                         contentScale = ContentScale.Fit
                     )

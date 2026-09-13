@@ -55,11 +55,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.foundation.Image
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.ui.components.GitHubTokenModal
-import com.example.ui.components.JULES_AVATAR_URL
 import com.example.ui.components.JulesBottomNavBar
 import com.example.ui.components.JulesTopAppBar
 import com.example.ui.screens.ApiKeysScreen
@@ -271,15 +272,27 @@ fun ProfileDialog(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                AsyncImage(
-                    model = if (avatarUrl.isNotBlank()) avatarUrl else JULES_AVATAR_URL,
-                    contentDescription = "User Avatar",
-                    modifier = Modifier
-                        .size(46.dp)
-                        .clip(CircleShape)
-                        .border(1.dp, JulesOutlineVariant, CircleShape),
-                    contentScale = ContentScale.Crop
-                )
+                if (avatarUrl.isNotBlank()) {
+                    AsyncImage(
+                        model = avatarUrl,
+                        contentDescription = "User Avatar",
+                        modifier = Modifier
+                            .size(46.dp)
+                            .clip(CircleShape)
+                            .border(1.dp, JulesOutlineVariant, CircleShape),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Image(
+                        painter = painterResource(id = R.drawable.jules_mascot),
+                        contentDescription = "User Avatar",
+                        modifier = Modifier
+                            .size(46.dp)
+                            .clip(CircleShape)
+                            .border(1.dp, JulesOutlineVariant, CircleShape),
+                        contentScale = ContentScale.Crop
+                    )
+                }
                 Column {
                     Text(
                         text = effectiveName,

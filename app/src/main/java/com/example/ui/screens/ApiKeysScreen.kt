@@ -75,9 +75,11 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.Image
+import androidx.compose.ui.res.painterResource
+import com.example.R
 import coil.compose.AsyncImage
 import com.example.ui.components.GitHubTokenModal
-import com.example.ui.components.JULES_AVATAR_URL
 import com.example.ui.components.ManageRepositoriesModal
 import com.example.ui.theme.JulesError
 import com.example.ui.theme.JulesOutline
@@ -725,14 +727,27 @@ fun ApiKeysScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        AsyncImage(
-                            model = if (settings.gitHubUserAvatarUrl.isNotBlank()) settings.gitHubUserAvatarUrl else JULES_AVATAR_URL,
-                            contentDescription = "Avatar",
-                            modifier = Modifier
-                                .size(44.dp)
-                                .clip(CircleShape),
-                            contentScale = ContentScale.Crop
-                        )
+                        if (settings.gitHubUserAvatarUrl.isNotBlank()) {
+                            AsyncImage(
+                                model = settings.gitHubUserAvatarUrl,
+                                contentDescription = "Avatar",
+                                modifier = Modifier
+                                    .size(44.dp)
+                                    .clip(CircleShape)
+                                    .border(1.dp, JulesOutlineVariant, CircleShape),
+                                contentScale = ContentScale.Crop
+                            )
+                        } else {
+                            Image(
+                                painter = painterResource(id = R.drawable.jules_mascot),
+                                contentDescription = "Avatar",
+                                modifier = Modifier
+                                    .size(44.dp)
+                                    .clip(CircleShape)
+                                    .border(1.dp, JulesOutlineVariant, CircleShape),
+                                contentScale = ContentScale.Crop
+                            )
+                        }
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 text = if (settings.gitHubUserName.isNotBlank()) settings.gitHubUserName else if (settings.gitHubUserLogin.isNotBlank()) "@${settings.gitHubUserLogin}" else "Jules Developer",
