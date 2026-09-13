@@ -21,6 +21,8 @@ REQUIRED_SYMBOL_IMPORTS = {
     "CircularProgressIndicator": "androidx.compose.material3.CircularProgressIndicator",
     "OutlinedTextField": "androidx.compose.material3.OutlinedTextField",
     "OutlinedTextFieldDefaults": "androidx.compose.material3.OutlinedTextFieldDefaults",
+    "Icons": "androidx.compose.material.icons.Icons",
+    "TextAlign": "androidx.compose.ui.text.style.TextAlign",
 }
 
 # Known typos that have broken compilation
