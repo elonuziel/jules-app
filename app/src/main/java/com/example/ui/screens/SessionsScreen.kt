@@ -124,6 +124,7 @@ fun SessionsScreen(
     val activeDrawerSession by viewModel.activeDrawerSession.collectAsState()
     val isRefreshing by viewModel.isRefreshingSessions.collectAsState()
     val connectivityError by viewModel.connectivityErrorMessage.collectAsState()
+    val settings by viewModel.settingsState.collectAsState()
 
     var focusedSessionId by remember { mutableStateOf<String?>(null) }
     var isQueueExpanded by remember { mutableStateOf(true) }
