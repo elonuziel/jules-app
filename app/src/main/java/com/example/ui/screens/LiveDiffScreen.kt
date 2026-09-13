@@ -28,8 +28,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Assignment
+import androidx.compose.material.icons.automirrored.filled.Assignment
+import androidx.compose.material.icons.automirrored.filled.ReceiptLong
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Code
@@ -44,9 +45,7 @@ import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Merge
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Psychology
-import androidx.compose.material.icons.filled.ReceiptLong
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.SmartToy
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.filled.Terminal
@@ -354,7 +353,7 @@ fun LiveDiffScreen(
             ) {
                 ViewModePill(
                     label = if (sessionActivities.isNotEmpty()) "Step Logs (${sessionActivities.size})" else "Step Logs",
-                    icon = Icons.Default.ReceiptLong,
+                    icon = Icons.AutoMirrored.Filled.ReceiptLong,
                     isSelected = selectedViewMode == 0,
                     onClick = { viewModel.diffSelectedViewMode.value = 0 }
                 )
@@ -446,7 +445,7 @@ fun LiveDiffScreen(
                                 verticalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.ReceiptLong,
+                                    imageVector = Icons.AutoMirrored.Filled.ReceiptLong,
                                     contentDescription = null,
                                     tint = JulesOutline,
                                     modifier = Modifier.size(28.dp)
@@ -482,7 +481,7 @@ fun LiveDiffScreen(
                                             horizontalArrangement = Arrangement.spacedBy(6.dp)
                                         ) {
                                             Icon(
-                                                imageVector = Icons.Default.Assignment,
+                                                imageVector = Icons.AutoMirrored.Filled.Assignment,
                                                 contentDescription = null,
                                                 tint = JulesPrimary,
                                                 modifier = Modifier.size(18.dp)
@@ -820,7 +819,7 @@ fun LiveDiffScreen(
                                 )
                             } else {
                                 Icon(
-                                    imageVector = Icons.Default.Send,
+                                    imageVector = Icons.AutoMirrored.Filled.Send,
                                     contentDescription = "Send",
                                     tint = if (chatInputText.isNotBlank()) Color.White else JulesOutline,
                                     modifier = Modifier.size(18.dp)

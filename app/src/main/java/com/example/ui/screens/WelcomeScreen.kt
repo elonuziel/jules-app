@@ -26,10 +26,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowForward
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.automirrored.filled.CallMerge
 import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.CallMerge
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Visibility
@@ -169,7 +168,7 @@ fun WelcomeScreen(
                         modifier = Modifier.weight(1f)
                     )
                     SimpleValueCard(
-                        icon = Icons.Default.CallMerge,
+                        icon = Icons.AutoMirrored.Filled.CallMerge,
                         iconTint = JulesSecondary,
                         title = "GitHub Ready",
                         subtitle = "Prepares verified PRs",
@@ -313,7 +312,7 @@ fun WelcomeScreen(
                             )
                         )
                         Icon(
-                            imageVector = Icons.Default.ArrowForward,
+                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                             contentDescription = null,
                             modifier = Modifier.size(18.dp)
                         )

@@ -29,9 +29,11 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.CallMerge
+import androidx.compose.material.icons.automirrored.filled.MergeType
+import androidx.compose.material.icons.automirrored.filled.OpenInNew
+import androidx.compose.material.icons.automirrored.filled.RotateRight
 import androidx.compose.material.icons.filled.AddBox
-import androidx.compose.material.icons.filled.CallMerge
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DataObject
@@ -39,13 +41,10 @@ import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Key
-import androidx.compose.material.icons.filled.MergeType
-import androidx.compose.material.icons.filled.OpenInNew
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.RotateRight
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.SearchOff
@@ -725,7 +724,7 @@ fun SessionsScreen(
                                     contentPadding = PaddingValues(vertical = 10.dp)
                                 ) {
                                     Icon(
-                                        imageVector = Icons.Default.MergeType,
+                                        imageVector = Icons.AutoMirrored.Filled.MergeType,
                                         contentDescription = null,
                                         tint = JulesPrimary,
                                         modifier = Modifier.size(16.dp)
@@ -1127,7 +1126,7 @@ fun FleetOverviewCard(
                 FleetStatItem(
                     label = "PRs Pending",
                     value = prCount.toString(),
-                    icon = Icons.Default.MergeType,
+                    icon = Icons.AutoMirrored.Filled.MergeType,
                     color = JulesPrimary
                 )
                 Box(
@@ -1522,7 +1521,7 @@ fun SessionCard(
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Icon(
-                                imageVector = Icons.Default.CallMerge,
+                                imageVector = Icons.AutoMirrored.Filled.CallMerge,
                                 contentDescription = null,
                                 tint = JulesSecondary,
                                 modifier = Modifier.size(16.dp)
@@ -1546,7 +1545,7 @@ fun SessionCard(
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Default.RotateRight,
+                            imageVector = Icons.AutoMirrored.Filled.RotateRight,
                             contentDescription = null,
                             tint = JulesPrimary,
                             modifier = Modifier
@@ -1692,7 +1691,7 @@ fun SessionCard(
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
-                                imageVector = Icons.Default.OpenInNew,
+                                imageVector = Icons.AutoMirrored.Filled.OpenInNew,
                                 contentDescription = null,
                                 tint = Color.White,
                                 modifier = Modifier.size(16.dp)

@@ -19,7 +19,7 @@ abstract class JulesDatabase : RoomDatabase() {
                     context.applicationContext,
                     JulesDatabase::class.java,
                     "jules_workspace.db"
-                ).fallbackToDestructiveMigration().build()
+                ).fallbackToDestructiveMigration(dropAllTables = true).build()
                 INSTANCE = instance
                 instance
             }

@@ -34,8 +34,7 @@ import androidx.compose.material.icons.filled.ForkRight
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.Psychology
-import androidx.compose.material.icons.filled.RocketLaunch
-import androidx.compose.material.icons.filled.Rule
+import androidx.compose.material.icons.automirrored.filled.Rule
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.Tune
@@ -669,7 +668,7 @@ fun NewTaskScreen(
                                         contentAlignment = Alignment.Center
                                     ) {
                                         Icon(
-                                            imageVector = Icons.Default.Rule,
+                                            imageVector = Icons.AutoMirrored.Filled.Rule,
                                             contentDescription = null,
                                             tint = JulesSecondary,
                                             modifier = Modifier.size(18.dp)

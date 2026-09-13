@@ -35,8 +35,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.FolderOff
 import androidx.compose.material.icons.filled.FolderShared
 import androidx.compose.material.icons.filled.ForkRight
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.OpenInNew
+import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
@@ -509,7 +508,7 @@ fun RepoSourceCard(
                         .background(JulesSurfaceContainerHigh, RoundedCornerShape(8.dp))
                 ) {
                     Icon(
-                        imageVector = Icons.Default.OpenInNew,
+                        imageVector = Icons.AutoMirrored.Filled.OpenInNew,
                         contentDescription = "View on GitHub",
                         tint = JulesOutline,
                         modifier = Modifier.size(16.dp)

@@ -27,7 +27,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CallMerge
+import androidx.compose.material.icons.automirrored.filled.CallMerge
+import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
@@ -37,7 +38,6 @@ import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.DataObject
 import androidx.compose.material.icons.filled.ForkRight
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material.icons.filled.ThumbUp
 import androidx.compose.material3.AlertDialog
@@ -207,7 +207,7 @@ fun SessionDrawerSheet(
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Icon(imageVector = Icons.Default.CallMerge, contentDescription = null, tint = JulesOutline, modifier = Modifier.size(16.dp))
+                            Icon(imageVector = Icons.AutoMirrored.Filled.CallMerge, contentDescription = null, tint = JulesOutline, modifier = Modifier.size(16.dp))
                             Text("No Pull Request Opened Yet", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface)
                         }
                         Text(
@@ -264,7 +264,7 @@ fun SessionDrawerSheet(
             modifier = Modifier.testTag("squash_merge_confirm_modal"),
             title = {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Icon(imageVector = Icons.Default.CallMerge, contentDescription = null, tint = Color(0xFFA855F7))
+                    Icon(imageVector = Icons.AutoMirrored.Filled.CallMerge, contentDescription = null, tint = Color(0xFFA855F7))
                     Text("Confirm Squash and Merge", style = MaterialTheme.typography.titleMedium)
                 }
             },
@@ -359,7 +359,7 @@ fun EnhancedPullRequestCard(
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Default.CallMerge,
+                        imageVector = Icons.AutoMirrored.Filled.CallMerge,
                         contentDescription = null,
                         tint = JulesPrimary,
                         modifier = Modifier.size(18.dp)
@@ -545,7 +545,7 @@ fun EnhancedPullRequestCard(
                             shape = RoundedCornerShape(8.dp)
                         ) {
                             Icon(
-                                imageVector = Icons.Default.CallMerge,
+                                imageVector = Icons.AutoMirrored.Filled.CallMerge,
                                 contentDescription = null,
                                 modifier = Modifier.size(15.dp)
                             )
@@ -603,7 +603,7 @@ fun EnhancedPullRequestCard(
                     shape = RoundedCornerShape(8.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Default.OpenInNew,
+                        imageVector = Icons.AutoMirrored.Filled.OpenInNew,
                         contentDescription = null,
                         modifier = Modifier.size(14.dp)
                     )
@@ -632,7 +632,7 @@ fun LiveStatusBadge(prStatus: PullRequestStatus) {
             if (isDark) Color(0xFFA855F7).copy(alpha = 0.20f) else Color(0xFFF3E8FD),
             if (isDark) Color(0xFFD8B4FE) else Color(0xFF6B21A8),
             "Merged",
-            Icons.Default.CallMerge
+            Icons.AutoMirrored.Filled.CallMerge
         )
         PullRequestStatus.CLOSED -> Quadruple(
             JulesError.copy(alpha = 0.18f),
