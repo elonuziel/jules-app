@@ -98,6 +98,10 @@ class JulesRepository(
         dao.insertSession(JulesSessionEntity.fromSessionItem(session))
     }
 
+    suspend fun updateSession(session: SessionItem) {
+        dao.updateSession(JulesSessionEntity.fromSessionItem(session))
+    }
+
     suspend fun updateSessionStatus(sessionId: String, newStatus: SessionStatus) {
         val existing = dao.getSessionById(sessionId) ?: return
         dao.updateSession(existing.copy(status = newStatus.name))

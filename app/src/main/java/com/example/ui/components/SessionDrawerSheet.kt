@@ -188,7 +188,8 @@ fun SessionDrawerSheet(
                     } catch (e: Exception) {
                         Toast.makeText(context, "Open $githubUrl", Toast.LENGTH_LONG).show()
                     }
-                }
+                },
+                onApprovePlan = onApprovePlan
             )
 
             // Live Diff Inspection Shortcut
@@ -292,7 +293,8 @@ fun EnhancedPullRequestCard(
     onMergeClick: () -> Unit,
     onDeleteBranchClick: () -> Unit,
     onCopyBranch: () -> Unit,
-    onOpenInGitHub: () -> Unit
+    onOpenInGitHub: () -> Unit,
+    onApprovePlan: ((SessionItem) -> Unit)? = null
 ) {
     val prNumber = session.prNumber.ifEmpty { "#412" }
 
