@@ -45,6 +45,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.example.ui.theme.JulesOutline
 import com.example.ui.theme.JulesOutlineVariant
 import com.example.ui.theme.JulesPrimary
 import com.example.ui.theme.JulesSecondary
@@ -145,47 +146,41 @@ fun JulesTopAppBar(
                 }
             }
 
-            // Right: Header pill showing GitHub connection status (connected vs unconfigured) + Avatar
+            // Right: Theme Toggle & Profile Avatar
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                // HEADER PILL SHOWING GITHUB CONNECTION STATUS (connected vs unconfigured)
+                // Subtle GitHub status indicator
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(9999.dp))
                         .background(
-                            if (isGitHubConnected) JulesSecondary.copy(alpha = 0.14f) else Color(0xFFF59E0B).copy(alpha = 0.16f)
-                        )
-                        .border(
-                            1.dp,
-                            if (isGitHubConnected) JulesSecondary.copy(alpha = 0.35f) else Color(0xFFF59E0B).copy(alpha = 0.45f),
-                            RoundedCornerShape(9999.dp)
+                            if (isGitHubConnected) JulesSecondary.copy(alpha = 0.12f) else JulesSurfaceContainerHigh
                         )
                         .clickable { onGitHubPillClick() }
-                        .padding(horizontal = 9.dp, vertical = 5.dp)
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
                         .testTag("github_status_pill")
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(5.dp)
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         Box(
                             modifier = Modifier
                                 .size(6.dp)
-                                .scale(if (isGitHubConnected) pulseScale else 1f)
                                 .background(
-                                    if (isGitHubConnected) JulesSecondary else Color(0xFFF59E0B),
+                                    if (isGitHubConnected) JulesSecondary else JulesOutline,
                                     shape = CircleShape
                                 )
                         )
                         Text(
-                            text = if (isGitHubConnected) "GH: Connected" else "GH: Unconfigured",
+                            text = if (isGitHubConnected) "GitHub" else "Offline",
                             style = MaterialTheme.typography.labelSmall.copy(
-                                fontWeight = FontWeight.Bold,
+                                fontWeight = FontWeight.Medium,
                                 fontSize = 11.sp
                             ),
-                            color = if (isGitHubConnected) JulesSecondary else Color(0xFFF59E0B)
+                            color = if (isGitHubConnected) JulesSecondary else JulesOutline
                         )
                     }
                 }
@@ -194,10 +189,9 @@ fun JulesTopAppBar(
                 IconButton(
                     onClick = onToggleTheme,
                     modifier = Modifier
-                        .size(34.dp)
+                        .size(36.dp)
                         .clip(CircleShape)
                         .background(JulesSurfaceContainerHigh)
-                        .border(1.dp, JulesOutlineVariant.copy(alpha = 0.5f), CircleShape)
                         .testTag("theme_quick_toggle_button")
                 ) {
                     Icon(
@@ -211,9 +205,8 @@ fun JulesTopAppBar(
                 // Profile Avatar with circular ring border
                 Box(
                     modifier = Modifier
-                        .size(34.dp)
+                        .size(36.dp)
                         .clip(CircleShape)
-                        .border(1.dp, JulesOutlineVariant.copy(alpha = 0.5f), CircleShape)
                         .clickable { onProfileClick() }
                         .testTag("profile_avatar_button"),
                     contentAlignment = Alignment.Center

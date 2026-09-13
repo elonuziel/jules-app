@@ -121,16 +121,32 @@ fun SessionsScreen(
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 100.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            // 1. Top Metrics Fleet Overview
+            // 1. Clean Title Header
             item {
-                val runningCount = allList.count { it.status == SessionStatus.RUNNING || it.status == SessionStatus.PATCHING }
-                val reviewCount = allList.count { it.status == SessionStatus.NEEDS_REVIEW }
-                FleetOverviewCard(
-                    activeCount = runningCount,
-                    prCount = reviewCount,
-                    testRate = "98.4%",
-                    latency = "142ms"
-                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text(
+                            text = "Tasks & Sessions",
+                            style = MaterialTheme.typography.titleLarge.copy(
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 22.sp
+                            ),
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        val runningCount = allList.count { it.status == SessionStatus.RUNNING || it.status == SessionStatus.PATCHING }
+                        Text(
+                            text = if (runningCount > 0) "$runningCount active tasks running" else "All tasks up to date",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
             }
 
             // 2. Search Box and Filter Chips
@@ -727,17 +743,10 @@ fun SessionCard(
                 }
             }
 
-            // Middle Container based on status
-            if (session.status == SessionStatus.RUNNING) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(JulesSurfaceLow)
-                        .border(0.5.dp, JulesOutlineVariant.copy(alpha = 0.35f), RoundedCornerShape(12.dp))
-                        .padding(12.dp)
-                ) {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            // Status & Progress summary
+            when (session.status) {
+                SessionStatus.RUNNING -> {
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
@@ -752,12 +761,12 @@ fun SessionCard(
                                     contentDescription = null,
                                     tint = JulesPrimary,
                                     modifier = Modifier
-                                        .size(15.dp)
+                                        .size(14.dp)
                                         .rotate(spinAngle)
                                 )
                                 Text(
                                     text = session.currentStep,
-                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
+                                    style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
                                     color = MaterialTheme.colorScheme.onSurface
                                 )
                             }
@@ -772,61 +781,14 @@ fun SessionCard(
                             progress = { session.progressPercent / 100f },
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(6.dp)
-                                .clip(RoundedCornerShape(3.dp)),
+                                .height(4.dp)
+                                .clip(RoundedCornerShape(2.dp)),
                             color = JulesPrimary,
                             trackColor = JulesSurfaceContainerHighest
                         )
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(4.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Psychology,
-                                    contentDescription = null,
-                                    tint = JulesTertiary,
-                                    modifier = Modifier.size(14.dp)
-                                )
-                                Text(
-                                    text = session.agentType,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(4.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Schedule,
-                                    contentDescription = null,
-                                    tint = JulesOutline,
-                                    modifier = Modifier.size(14.dp)
-                                )
-                                Text(
-                                    text = session.etaRemaining,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = JulesOutline
-                                )
-                            }
-                        }
                     }
                 }
-            } else if (session.status == SessionStatus.NEEDS_REVIEW) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(JulesSurfaceLow)
-                        .border(0.5.dp, JulesOutlineVariant.copy(alpha = 0.35f), RoundedCornerShape(12.dp))
-                        .padding(12.dp)
-                ) {
+                SessionStatus.NEEDS_REVIEW -> {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -834,104 +796,61 @@ fun SessionCard(
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(32.dp)
-                                    .background(JulesDiffAdditionBg, RoundedCornerShape(8.dp)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.CallMerge,
-                                    contentDescription = null,
-                                    tint = JulesSecondary,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            }
-                            Column {
-                                Text(
-                                    text = "PR Created ${session.prNumber.ifEmpty { "#412" }}",
-                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                                Text(
-                                    text = session.prTitle.ifEmpty { "Ready for engineer sign-off" },
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
-                        ) {
-                            Text(
-                                text = "+${session.diffAdded}",
-                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
-                                color = JulesSecondary
+                            Icon(
+                                imageVector = Icons.Default.CallMerge,
+                                contentDescription = null,
+                                tint = JulesSecondary,
+                                modifier = Modifier.size(16.dp)
                             )
                             Text(
-                                text = "/",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = JulesOutlineVariant
+                                text = "Pull Request ${session.prNumber.ifEmpty { "#412" }} ready for review",
+                                style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
+                                color = MaterialTheme.colorScheme.onSurface
                             )
-                            Text(
-                                text = "-${session.diffRemoved}",
-                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
-                                color = JulesError
-                            )
-                        }
-                    }
-                }
-            } else if (session.status == SessionStatus.PATCHING) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(JulesSurfaceLow)
-                        .border(0.5.dp, JulesOutlineVariant.copy(alpha = 0.35f), RoundedCornerShape(12.dp))
-                        .padding(12.dp)
-                ) {
-                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.RotateRight,
-                                    contentDescription = null,
-                                    tint = JulesPrimary,
-                                    modifier = Modifier
-                                        .size(16.dp)
-                                        .rotate(spinAngle)
-                                )
-                                Text(
-                                    text = session.currentStep,
-                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                            }
-                            Box(
-                                modifier = Modifier
-                                    .background(JulesSecondary.copy(alpha = 0.15f), RoundedCornerShape(4.dp))
-                                    .padding(horizontal = 6.dp, vertical = 2.dp)
-                            ) {
-                                Text(
-                                    text = "Plan Approved",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = JulesSecondary
-                                )
-                            }
                         }
                         Text(
-                            text = session.synthesizerDetail.ifEmpty { "> Updating UserDao.kt suspend fun getAll() -> Flow<List<User>>" },
-                            style = MaterialTheme.typography.labelSmall,
+                            text = "+${session.diffAdded} -${session.diffRemoved}",
+                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+                            color = JulesSecondary
+                        )
+                    }
+                }
+                SessionStatus.PATCHING -> {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.RotateRight,
+                            contentDescription = null,
+                            tint = JulesPrimary,
+                            modifier = Modifier
+                                .size(14.dp)
+                                .rotate(spinAngle)
+                        )
+                        Text(
+                            text = session.currentStep,
+                            style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                }
+                SessionStatus.COMPLETED -> {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.CheckCircle,
+                            contentDescription = null,
+                            tint = JulesSecondary,
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Text(
+                            text = "Completed • Verified by tests",
+                            style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
