@@ -36,12 +36,28 @@ elif [ -d "$HOME/.jdks" ]; then
     fi
 fi
 
-if [ -n "$JAVA_BIN" ] && "$JAVA_BIN" -version >/dev/null 2>&1 && [ -f "$REPO_ROOT/gradlew" ]; then
+# 3. Check if Android SDK and JDK are available for local compilation / unit tests
+HAS_ANDROID_SDK=false
+if [ -n "$ANDROID_HOME" ] && [ -d "$ANDROID_HOME" ]; then
+    HAS_ANDROID_SDK=true
+elif [ -n "$ANDROID_SDK_ROOT" ] && [ -d "$ANDROID_SDK_ROOT" ]; then
+    HAS_ANDROID_SDK=true
+elif [ -f "$REPO_ROOT/local.properties" ] && grep -q '^sdk\.dir=' "$REPO_ROOT/local.properties"; then
+    HAS_ANDROID_SDK=true
+fi
+
+if [ "$HAS_ANDROID_SDK" = true ] && [ -n "$JAVA_BIN" ] && "$JAVA_BIN" -version >/dev/null 2>&1 && [ -f "$REPO_ROOT/gradlew" ]; then
     echo "• Running local unit tests with Gradle..."
+    export GRADLE_USER_HOME="${GRADLE_USER_HOME:-$REPO_ROOT/.gradle}"
     ./gradlew testDebugUnitTest --no-daemon -q
     echo "✅ Local unit tests passed!"
 else
-    echo "ℹ️ Note: No operational local JDK found. Static validation passed."
+    if [ "$HAS_ANDROID_SDK" = false ]; then
+        echo "ℹ️ Note: Android SDK not configured locally (ANDROID_HOME or local.properties not found)."
+        echo "   Static Kotlin validation passed! GitHub Actions CI will execute full unit tests and APK quality gates."
+    else
+        echo "ℹ️ Note: No operational local JDK found. Static Kotlin validation passed!"
+    fi
 fi
 
 echo "✅ Pre-commit checks completed successfully."
