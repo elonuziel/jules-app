@@ -1,0 +1,7 @@
+{
+  "name": "Jules",
+  "description": "Autonomous AI coding agent mobile workspace for managing sessions, dispatching tasks, and reviewing live code diffs.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+
