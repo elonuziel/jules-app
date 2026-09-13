@@ -27,19 +27,28 @@ class JulesUnitTest {
             agentType = "Jules Async Agent",
             etaRemaining = "2m remaining",
             testSuiteInfo = "pytest suite: 42/48",
-            createdAt = 1000L
+            createdAt = 1000L,
+            prUrl = "https://github.com/google/cloud-android-sdk/pull/412"
         )
 
         val entity = JulesSessionEntity.fromSessionItem(item)
         assertEquals("JLS-8492", entity.id)
         assertEquals("RUNNING", entity.status)
         assertEquals("BUG_FIX", entity.category)
+        assertEquals("https://github.com/google/cloud-android-sdk/pull/412", entity.prUrl)
 
         val restored = entity.toSessionItem()
         assertEquals(item.id, restored.id)
         assertEquals(item.status, restored.status)
         assertEquals(item.category, restored.category)
         assertEquals(item.progressPercent, restored.progressPercent)
+        assertEquals(item.prUrl, restored.prUrl)
+
+        val prRef = restored.getGitHubPrRef()
+        assertNotNull(prRef)
+        assertEquals("google", prRef?.owner)
+        assertEquals("cloud-android-sdk", prRef?.repo)
+        assertEquals(412, prRef?.number)
     }
 
     @Test

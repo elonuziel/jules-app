@@ -102,15 +102,20 @@ fun NewTaskScreen(
     val isDispatching by viewModel.isDispatching.collectAsState()
     val dispatchSuccessMessage by viewModel.dispatchSuccessMessage.collectAsState()
 
+    val sources by viewModel.sourcesList.collectAsState()
     var repoDropdownExpanded by remember { mutableStateOf(false) }
     var showAdvancedOptions by remember { mutableStateOf(false) }
-    val repoOptions = listOf(
-        "google/cloud-android-sdk",
-        "google/jules-runtime-engine",
-        "google/mobile-agent-ui",
-        "corp/cloud-orchestration",
-        "android-gemini-client"
-    )
+    val repoOptions = if (sources.isNotEmpty()) {
+        sources.map { it.fullName }
+    } else {
+        listOf(
+            "google/cloud-android-sdk",
+            "google/jules-runtime-engine",
+            "google/mobile-agent-ui",
+            "corp/cloud-orchestration",
+            "android-gemini-client"
+        )
+    }
 
     val advancedChevronRotation by animateFloatAsState(
         targetValue = if (showAdvancedOptions) 180f else 0f,
@@ -259,6 +264,10 @@ fun NewTaskScreen(
                                     },
                                     onClick = {
                                         viewModel.selectedRepo.value = repo
+                                        val matched = sources.firstOrNull { it.fullName == repo }
+                                        if (matched != null) {
+                                            viewModel.targetBranch.value = matched.defaultBranch
+                                        }
                                         repoDropdownExpanded = false
                                     }
                                 )

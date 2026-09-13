@@ -441,7 +441,10 @@ fun SessionsScreen(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 Button(
-                                    onClick = onNavigateToLiveDiff,
+                                    onClick = {
+                                        activeSession?.let { viewModel.loadDiffForSession(it) }
+                                        onNavigateToLiveDiff()
+                                    },
                                     modifier = Modifier
                                         .weight(1f)
                                         .testTag("focus_inspect_diff_btn"),
@@ -703,9 +706,15 @@ fun SessionsScreen(
                     items(filteredList, key = { it.id }) { session ->
                         SessionCard(
                             session = session,
-                            onViewDiff = onNavigateToLiveDiff,
+                            onViewDiff = {
+                                viewModel.loadDiffForSession(session)
+                                onNavigateToLiveDiff()
+                            },
                             onReviewGithub = { viewModel.openSessionDrawer(session) },
-                            onLiveWorkspace = onNavigateToLiveDiff,
+                            onLiveWorkspace = {
+                                viewModel.loadDiffForSession(session)
+                                onNavigateToLiveDiff()
+                            },
                             onCardClick = {
                                 focusedSessionId = session.id
                                 Toast.makeText(context, "Switched focus to #${session.id}", Toast.LENGTH_SHORT).show()
@@ -762,8 +771,9 @@ fun SessionsScreen(
                 viewModel.deleteBranch(s)
                 Toast.makeText(context, "Branch ${s.branch} deleted successfully!", Toast.LENGTH_SHORT).show()
             },
-            onInspectDiff = { _ ->
+            onInspectDiff = { s ->
                 viewModel.closeSessionDrawer()
+                viewModel.loadDiffForSession(s)
                 onNavigateToLiveDiff()
             }
         )

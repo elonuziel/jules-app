@@ -102,6 +102,26 @@ fun LiveDiffScreen(
     val progress by viewModel.liveDiffProgress.collectAsState()
     val approvalMessage by viewModel.prApprovedMessage.collectAsState()
     val showReprompt by viewModel.showRepromptDialog.collectAsState()
+    val selectedSession by viewModel.selectedSessionForDiff.collectAsState()
+    val diffFiles by viewModel.activeDiffFiles.collectAsState()
+    val isLoadingDiff by viewModel.isLoadingDiff.collectAsState()
+    val diffError by viewModel.diffErrorMessage.collectAsState()
+    val allSessions by viewModel.allSessions.collectAsState()
+
+    val activeSession = selectedSession
+        ?: allSessions.firstOrNull { it.status == com.example.data.model.SessionStatus.RUNNING || it.status == com.example.data.model.SessionStatus.PATCHING }
+        ?: allSessions.firstOrNull()
+
+    val displayId = activeSession?.let { "#${it.id}" } ?: "#JLS-8492"
+    val displayTitle = activeSession?.title ?: "Fix SQLite Cursor Leak in SyncWorker"
+    val displayRepo = activeSession?.repo ?: "google/cloud-android-sdk"
+    val displayBranch = activeSession?.branch ?: "jules/cursor-leak-fix"
+    val displayStep = activeSession?.currentStep ?: "Running Patch Verification Suite"
+    val displayProgress = activeSession?.progressPercent ?: progress
+
+    val mainFile = diffFiles.firstOrNull() ?: DiffDataProvider.mainFile
+    val secondaryFile1 = diffFiles.getOrNull(1) ?: DiffDataProvider.secondaryFile1
+    val secondaryFile2 = diffFiles.getOrNull(2) ?: DiffDataProvider.secondaryFile2
 
     var customRepromptText by remember { mutableStateOf("") }
 
@@ -155,7 +175,7 @@ fun LiveDiffScreen(
                                         .padding(horizontal = 6.dp, vertical = 2.dp)
                                 ) {
                                     Text(
-                                        text = "#JLS-8492",
+                                        text = displayId,
                                         style = MaterialTheme.typography.labelSmall,
                                         color = JulesTertiary
                                     )
@@ -171,7 +191,7 @@ fun LiveDiffScreen(
                                         modifier = Modifier.size(14.dp)
                                     )
                                     Text(
-                                        text = "4m 12s elapsed",
+                                        text = "Active Session",
                                         style = MaterialTheme.typography.labelSmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
@@ -181,7 +201,7 @@ fun LiveDiffScreen(
                             Spacer(modifier = Modifier.height(4.dp))
 
                             Text(
-                                text = "Fix SQLite Cursor Leak in SyncWorker",
+                                text = displayTitle,
                                 style = MaterialTheme.typography.headlineSmall.copy(
                                     fontSize = 17.sp,
                                     fontWeight = FontWeight.SemiBold
@@ -190,7 +210,7 @@ fun LiveDiffScreen(
                             )
                         }
 
-                        // Step 5/6 Chip
+                        // Step / Status Chip
                         Box(
                             modifier = Modifier
                                 .background(JulesSurfaceContainerHigh, RoundedCornerShape(9999.dp))
@@ -205,7 +225,7 @@ fun LiveDiffScreen(
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
-                                    text = "Step 5/6",
+                                    text = activeSession?.status?.label ?: "Running",
                                     style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
                                     color = JulesSecondary
                                 )
@@ -226,7 +246,7 @@ fun LiveDiffScreen(
                             modifier = Modifier.size(15.dp)
                         )
                         Text(
-                            text = "google/cloud-android-sdk",
+                            text = displayRepo,
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onSurface
                         )
@@ -242,7 +262,7 @@ fun LiveDiffScreen(
                             modifier = Modifier.size(15.dp)
                         )
                         Text(
-                            text = "jules/cursor-leak-fix",
+                            text = displayBranch,
                             style = MaterialTheme.typography.labelMedium,
                             color = JulesTertiary
                         )
@@ -268,20 +288,20 @@ fun LiveDiffScreen(
                                         .rotate(spinAngle)
                                 )
                                 Text(
-                                    text = "Running Patch Verification Suite",
+                                    text = displayStep,
                                     style = MaterialTheme.typography.labelSmall,
                                     color = JulesSecondary
                                 )
                             }
                             Text(
-                                text = "$progress% complete",
+                                text = "$displayProgress% complete",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = JulesOutline
                             )
                         }
 
                         LinearProgressIndicator(
-                            progress = { progress / 100f },
+                            progress = { displayProgress / 100f },
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(6.dp)
@@ -332,7 +352,36 @@ fun LiveDiffScreen(
             }
         }
 
-        // 3. Main Active Diff View (SyncWorker.kt)
+        // Optional Loading or Error Banner
+        if (isLoadingDiff) {
+            item {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(JulesSurfaceContainerHigh, RoundedCornerShape(8.dp))
+                        .padding(12.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        androidx.compose.material3.CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            strokeWidth = 2.dp,
+                            color = JulesPrimary
+                        )
+                        Text(
+                            text = "Loading pull request files from GitHub...",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                }
+            }
+        }
+
+        // 3. Main Active Diff View
         item {
             Box(
                 modifier = Modifier
@@ -362,7 +411,7 @@ fun LiveDiffScreen(
                                 modifier = Modifier.size(18.dp)
                             )
                             Text(
-                                text = DiffDataProvider.mainFile.fileName,
+                                text = mainFile.fileName,
                                 style = MaterialTheme.typography.labelSmall.copy(
                                     fontWeight = FontWeight.Medium,
                                     fontSize = 12.sp
@@ -380,14 +429,14 @@ fun LiveDiffScreen(
                                     .background(JulesSecondary.copy(alpha = 0.12f), RoundedCornerShape(4.dp))
                                     .padding(horizontal = 6.dp, vertical = 2.dp)
                             ) {
-                                Text("+18", style = MaterialTheme.typography.labelSmall, color = JulesSecondary)
+                                Text("+${mainFile.addedCount}", style = MaterialTheme.typography.labelSmall, color = JulesSecondary)
                             }
                             Box(
                                 modifier = Modifier
                                     .background(JulesError.copy(alpha = 0.12f), RoundedCornerShape(4.dp))
                                     .padding(horizontal = 6.dp, vertical = 2.dp)
                             ) {
-                                Text("-6", style = MaterialTheme.typography.labelSmall, color = JulesError)
+                                Text("-${mainFile.deletedCount}", style = MaterialTheme.typography.labelSmall, color = JulesError)
                             }
                             Icon(
                                 imageVector = if (isMainExpanded) Icons.Default.UnfoldLess else Icons.Default.UnfoldMore,
@@ -406,7 +455,7 @@ fun LiveDiffScreen(
                                 .padding(vertical = 6.dp)
                                 .horizontalScroll(rememberScrollState())
                         ) {
-                            DiffDataProvider.mainFile.lines.forEach { line ->
+                            mainFile.lines.forEach { line ->
                                 DiffLineRow(line = line)
                             }
                         }
@@ -418,27 +467,27 @@ fun LiveDiffScreen(
         // 4. Collapsible Secondary Diff Files
         item {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                // Secondary File 1 (SyncWorkerTest.kt)
+                // Secondary File 1
                 SecondaryDiffCard(
-                    fileName = DiffDataProvider.secondaryFile1.fileName,
-                    addedCount = DiffDataProvider.secondaryFile1.addedCount,
-                    deletedCount = DiffDataProvider.secondaryFile1.deletedCount,
+                    fileName = secondaryFile1.fileName,
+                    addedCount = secondaryFile1.addedCount,
+                    deletedCount = secondaryFile1.deletedCount,
                     isExpanded = isSecondary1Expanded,
                     onToggle = { viewModel.isSecondaryFile1Expanded.value = !isSecondary1Expanded },
-                    description = DiffDataProvider.secondaryFile1.testDescription,
-                    statusTag = "Passed (120ms)",
+                    description = secondaryFile1.testDescription.ifBlank { "// Modified in pull request" },
+                    statusTag = "Patch Verified",
                     icon = Icons.Default.CheckCircle,
                     iconTint = JulesSecondary
                 )
 
-                // Secondary File 2 (DatabaseHelper.kt)
+                // Secondary File 2
                 SecondaryDiffCard(
-                    fileName = DiffDataProvider.secondaryFile2.fileName,
-                    addedCount = DiffDataProvider.secondaryFile2.addedCount,
-                    deletedCount = DiffDataProvider.secondaryFile2.deletedCount,
+                    fileName = secondaryFile2.fileName,
+                    addedCount = secondaryFile2.addedCount,
+                    deletedCount = secondaryFile2.deletedCount,
                     isExpanded = isSecondary2Expanded,
                     onToggle = { viewModel.isSecondaryFile2Expanded.value = !isSecondary2Expanded },
-                    description = DiffDataProvider.secondaryFile2.testDescription,
+                    description = secondaryFile2.testDescription.ifBlank { "// Modified in pull request" },
                     statusTag = "StrictMode Tagged",
                     icon = Icons.Default.Description,
                     iconTint = JulesOutline

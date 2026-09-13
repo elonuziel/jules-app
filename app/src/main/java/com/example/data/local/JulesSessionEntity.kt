@@ -31,7 +31,8 @@ data class JulesSessionEntity(
     val prStatus: String = "OPEN",
     val isBranchDeleted: Boolean = false,
     val prApproved: Boolean = false,
-    val targetBaseBranch: String = "main"
+    val targetBaseBranch: String = "main",
+    val prUrl: String = ""
 ) {
     fun toSessionItem(): SessionItem {
         val parsedStatus = try {
@@ -72,7 +73,8 @@ data class JulesSessionEntity(
             prStatus = parsedPrStatus,
             isBranchDeleted = isBranchDeleted,
             prApproved = prApproved,
-            targetBaseBranch = targetBaseBranch
+            targetBaseBranch = targetBaseBranch,
+            prUrl = prUrl
         )
     }
 
@@ -101,7 +103,8 @@ data class JulesSessionEntity(
                 prStatus = item.prStatus.name,
                 isBranchDeleted = item.isBranchDeleted,
                 prApproved = item.prApproved,
-                targetBaseBranch = item.targetBaseBranch
+                targetBaseBranch = item.targetBaseBranch,
+                prUrl = item.prUrl
             )
         }
     }
